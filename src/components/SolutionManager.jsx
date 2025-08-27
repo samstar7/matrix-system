@@ -33,20 +33,10 @@ const SolutionManager = ({ currentView, onViewChange }) => {
 
   useEffect(() => {
     loadServiceAreas()
-    if (currentView === 'list') {
-      loadSolutions()
-    }
     if (currentView === 'service-areas') {
       loadServiceAreaList()
     }
   }, [currentView])
-
-  // 컴포넌트 마운트 시 데이터 로드
-  useEffect(() => {
-    if (currentView === 'list' && solutions.length === 0) {
-      loadSolutions()
-    }
-  }, [])
 
   const loadServiceAreas = async () => {
     try {
@@ -116,6 +106,9 @@ const SolutionManager = ({ currentView, onViewChange }) => {
       let solutionsArray = []
       if (Array.isArray(data)) {
         solutionsArray = data
+      } else if (data && data.flat) {
+        // 서버에서 flat 배열로 반환하는 경우
+        solutionsArray = data.flat
       } else if (data && data.solutions) {
         solutionsArray = data.solutions
       } else if (data && data.data) {
@@ -128,19 +121,77 @@ const SolutionManager = ({ currentView, onViewChange }) => {
         solutionsArray = []
       }
       
-      console.log('처리된 솔루션 배열:', solutionsArray)
-      setSolutions(solutionsArray)
-      setGroupedSolutions(solutionsArray)
+      // 서비스영역 ID순서로 정렬
+      const sortedSolutions = solutionsArray.sort((a, b) => {
+        const aId = a.service_area_id || 0
+        const bId = b.service_area_id || 0
+        if (aId !== bId) {
+          return aId - bId
+        }
+        // 서비스영역이 같으면 솔루션구분으로 정렬
+        return (a.solution_type || '').localeCompare(b.solution_type || '')
+      })
+      
+      console.log('정렬된 솔루션 배열:', sortedSolutions)
+      setSolutions(sortedSolutions)
+      setGroupedSolutions(sortedSolutions)
+      return sortedSolutions
     } catch (error) {
       console.error('솔루션 로드 실패:', error)
       setSolutions([])
       setGroupedSolutions([])
+      return []
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSearchChange = (e) => {
+  // 서비스영역 선택을 위한 데이터만 로드하는 함수 (그리드 업데이트 없음)
+  const loadSolutionsForDropdown = async () => {
+    try {
+      const data = await solutionAPI.getSolutionList()
+      console.log('드롭다운용 솔루션 데이터 로드:', data)
+      
+      // 데이터가 배열인지 확인하고 처리
+      let solutionsArray = []
+      if (Array.isArray(data)) {
+        solutionsArray = data
+      } else if (data && data.flat) {
+        // 서버에서 flat 배열로 반환하는 경우
+        solutionsArray = data.flat
+      } else if (data && data.solutions) {
+        solutionsArray = data.solutions
+      } else if (data && data.data) {
+        solutionsArray = data.data
+      } else if (data && typeof data === 'object') {
+        // 객체인 경우 배열로 변환 시도
+        solutionsArray = Object.values(data)
+      } else {
+        console.error('예상치 못한 데이터 형식:', data)
+        solutionsArray = []
+      }
+      
+      // 서비스영역 ID순서로 정렬
+      const sortedSolutions = solutionsArray.sort((a, b) => {
+        const aId = a.service_area_id || 0
+        const bId = b.service_area_id || 0
+        if (aId !== bId) {
+          return aId - bId
+        }
+        // 서비스영역이 같으면 솔루션구분으로 정렬
+        return (a.solution_type || '').localeCompare(b.solution_type || '')
+      })
+      
+      console.log('드롭다운용 정렬된 솔루션 배열:', sortedSolutions)
+      // solutions 상태도 업데이트하지 않음 (그리드에 표시되지 않도록)
+      return sortedSolutions
+    } catch (error) {
+      console.error('드롭다운용 솔루션 로드 실패:', error)
+      return []
+    }
+  }
+
+  const handleSearchChange = async (e) => {
     const { name, value } = e.target
     setSearchForm(prev => ({
       ...prev,
@@ -150,8 +201,15 @@ const SolutionManager = ({ currentView, onViewChange }) => {
     // 서비스영역이 변경되면 솔루션구분 필터링
     if (name === 'service_area') {
       if (value && value !== '__ALL__') {
+        // 데이터가 없으면 먼저 로드 (그리드에는 표시하지 않음)
+        let currentSolutions = solutions
+        if (solutions.length === 0) {
+          console.log('서비스영역 선택을 위해 데이터를 로드합니다.')
+          currentSolutions = await loadSolutionsForDropdown()
+        }
+        
         // 선택된 서비스영역의 솔루션구분만 필터링
-        const filteredTypes = solutions
+        const filteredTypes = currentSolutions
           .filter(solution => solution.service_area === value)
           .map(solution => solution.solution_type)
           .filter((type, index, arr) => arr.indexOf(type) === index) // 중복 제거
@@ -168,29 +226,33 @@ const SolutionManager = ({ currentView, onViewChange }) => {
     }
   }
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     const { service_area, solution_type, solution_name } = searchForm
     
-    console.log('검색 시작 - 전체 데이터:', solutions.length, '개')
+    console.log('검색 시작')
     console.log('검색 조건:', { service_area, solution_type, solution_name })
-    console.log('전체 솔루션 데이터:', solutions)
     
-    // 데이터가 없으면 경고
-    if (solutions.length === 0) {
-      alert('검색할 데이터가 없습니다. 데이터를 먼저 로드해주세요.')
-      return
-    }
-    
-    // 검색 조건이 모두 비어있는지 확인
+    // 검색 조건이 모두 비어있는지 확인 (서비스영역 '전체' 포함)
     const hasSearchConditions = service_area || solution_type || solution_name
     
     if (!hasSearchConditions) {
-      alert('검색 조건을 하나 이상 선택하거나 입력해주세요.\n\n• 서비스영역: 드롭다운에서 선택\n• 솔루션구분: 드롭다운에서 선택\n• 솔루션명: 텍스트 입력')
+      // 검색 조건이 없으면 유의사항 팝업만 표시하고 데이터는 표시하지 않음
+      alert('검색 조건을 하나 이상 선택하여 주시기 바랍니다.\n\n• 서비스영역: 드롭다운에서 선택\n• 솔루션명: 텍스트 입력')
+      setSearchResults([])
+      setSearchPerformed(false)
+      console.log('검색 조건 없음 - 유의사항 팝업만 표시')
       return
     }
     
+    // 검색 조건이 있을 때만 데이터 로드
+    let currentSolutions = solutions
+    if (solutions.length === 0) {
+      console.log('데이터가 없어서 먼저 로드합니다.')
+      currentSolutions = await loadSolutions()
+    }
+    
     // 클라이언트 사이드 검색
-    let filteredResults = [...solutions] // 배열 복사
+    let filteredResults = [...currentSolutions] // 배열 복사
     
     // 서비스영역 필터링
     if (service_area && service_area !== '__ALL__') {
@@ -208,12 +270,18 @@ const SolutionManager = ({ currentView, onViewChange }) => {
       console.log('솔루션구분 필터링 후:', filteredResults.length, '개')
     }
     
-    // 솔루션명 필터링 (부분 일치)
+    // 솔루션명 필터링 (Like 검색 - 대소문자 구분 없이 부분 일치, 와일드카드 지원)
     if (solution_name) {
+      const searchTerm = solution_name.toLowerCase().trim()
+      // 와일드카드(*)를 정규식 패턴으로 변환
+      const regexPattern = searchTerm.replace(/\*/g, '.*')
+      const regex = new RegExp(regexPattern, 'i') // 'i' 플래그로 대소문자 구분 없음
+      
       filteredResults = filteredResults.filter(solution => 
-        solution.solution_name && solution.solution_name.toLowerCase().includes(solution_name.toLowerCase())
+        solution.solution_name && 
+        regex.test(solution.solution_name)
       )
-      console.log('솔루션명 필터링 후:', filteredResults.length, '개')
+      console.log('솔루션명 Like 검색 후:', filteredResults.length, '개')
     }
     
     setSearchResults(filteredResults)
@@ -522,14 +590,7 @@ const SolutionManager = ({ currentView, onViewChange }) => {
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
             <button
-              onClick={() => {
-                if (solutions.length === 0) {
-                  loadSolutions()
-                  setTimeout(() => handleSearch(), 1000)
-                } else {
-                  handleSearch()
-                }
-              }}
+              onClick={handleSearch}
               style={{
                 padding: '6px 12px',
                 backgroundColor: '#007bff',
@@ -554,6 +615,8 @@ const SolutionManager = ({ currentView, onViewChange }) => {
                 setSearchResults([])
                 setSearchPerformed(false)
                 setFilteredSolutionTypes([])
+                setSolutions([])
+                setGroupedSolutions([])
               }}
               style={{
                 padding: '6px 12px',
@@ -590,38 +653,38 @@ const SolutionManager = ({ currentView, onViewChange }) => {
           }}>
             <thead>
               <tr style={{ backgroundColor: '#E9ECEF' }}>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>서비스영역</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '150px' }}>서비스영역</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>솔루션구분</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>솔루션명</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>라이선스 정책</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>벤더사</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>벤더사담당자</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>벤더사연락처</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '200px' }}>솔루션명</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '150px' }}>라이선스 정책</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '150px' }}>벤더사</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '120px' }}>벤더사담당자</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '120px' }}>벤더사연락처</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>벤더사메일</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>납품업체</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>납품업체담당자</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>납품업체연락처</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '120px' }}>납품업체연락처</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>납품업체메일</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>비고</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', width: '300px', minWidth: '300px' }}>비고</th>
               </tr>
             </thead>
             <tbody>
               {Array.isArray(searchPerformed ? searchResults : solutions) ? 
                 (searchPerformed ? searchResults : solutions).map((solution, index) => (
                   <tr key={solution.id || index} style={{ borderBottom: '1px solid #dee2e6' }}>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.service_area || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '150px' }}>{solution.service_area || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>{solution.solution_type || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.solution_name || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.license_policy || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.vendor || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.vendor_contact || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.vendor_phone || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '200px' }}>{solution.solution_name || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '150px' }}>{solution.license_policy || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '150px' }}>{solution.vendor || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '120px' }}>{solution.vendor_contact || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '120px' }}>{solution.vendor_phone || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>{solution.vendor_email || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>{solution.supplier || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>{solution.supplier_contact || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.supplier_phone || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '120px' }}>{solution.supplier_phone || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>{solution.supplier_email || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.remarks || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'left', width: '300px', minWidth: '300px' }}>{solution.remarks || ''}</td>
                   </tr>
                 )) : 
                 <tr>
