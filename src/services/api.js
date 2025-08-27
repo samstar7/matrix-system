@@ -122,6 +122,7 @@ export const solutionAPI = {
 
   // 솔루션 수정
   updateSolution: async (id, solutionData) => {
+    console.log('API 호출 - 솔루션 수정:', { id, solutionData })
     const response = await fetch(`${API_BASE_URL}/solutions/${id}`, {
       method: 'PUT',
       headers: {
@@ -129,8 +130,15 @@ export const solutionAPI = {
       },
       body: JSON.stringify(solutionData),
     });
-    if (!response.ok) throw new Error('솔루션 수정 실패');
-    return response.json();
+    console.log('API 응답 상태:', response.status, response.statusText)
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('API 오류 응답:', errorText)
+      throw new Error('솔루션 수정 실패')
+    }
+    const result = await response.json()
+    console.log('API 성공 응답:', result)
+    return result
   },
 
   // 솔루션 삭제

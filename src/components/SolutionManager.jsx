@@ -17,6 +17,7 @@ const SolutionManager = ({ currentView, onViewChange }) => {
   const [filteredSolutionTypes, setFilteredSolutionTypes] = useState([])
   const [bulkData, setBulkData] = useState([])
   const [showBulkPreview, setShowBulkPreview] = useState(false)
+  const [editingSolution, setEditingSolution] = useState(null)
   const [form, setForm] = useState({
     service_area: '',
     solution_type: '',
@@ -32,6 +33,31 @@ const SolutionManager = ({ currentView, onViewChange }) => {
     supplier_email: '',
     remarks: ''
   })
+  
+  const [editForm, setEditForm] = useState({
+    service_area: '',
+    solution_type: '',
+    solution_name: '',
+    license_policy: '',
+    vendor: '',
+    vendor_contact: '',
+    vendor_phone: '',
+    vendor_email: '',
+    supplier: '',
+    supplier_contact: '',
+    supplier_phone: '',
+    supplier_email: '',
+    remarks: ''
+  })
+  
+  const [editSearchForm, setEditSearchForm] = useState({
+    service_area: '',
+    solution_type: '',
+    solution_name: ''
+  })
+  
+  const [editSearchResults, setEditSearchResults] = useState([])
+  const [editSearchPerformed, setEditSearchPerformed] = useState(false)
 
   useEffect(() => {
     loadServiceAreas()
@@ -57,7 +83,20 @@ const SolutionManager = ({ currentView, onViewChange }) => {
       })
       setFilteredSolutionTypes([])
     }
-  }, [currentView])
+    
+    // 수정화면 진입 시 솔루션구분 필터링
+    if (currentView === 'edit' && editingSolution) {
+      if (editForm.service_area && editForm.service_area !== '__ALL__') {
+        loadSolutionsForDropdown().then(() => {
+          const filtered = [...new Set(solutions
+            .filter(s => s.service_area === editForm.service_area)
+            .map(s => s.solution_type)
+            .filter(Boolean))]
+          setFilteredSolutionTypes(filtered)
+        })
+      }
+    }
+  }, [currentView, editingSolution])
 
   const loadServiceAreas = async () => {
     try {
@@ -388,6 +427,279 @@ const SolutionManager = ({ currentView, onViewChange }) => {
       alert('파일 업로드에 실패했습니다.')
       event.target.value = ''
     }
+  }
+
+  // 수정 폼 변경 처리
+  const handleEditChange = async (e) => {
+    const { name, value } = e.target
+    setEditForm(prev => ({ ...prev, [name]: value }))
+    
+    // 서비스영역이 변경되면 솔루션구분 필터링
+    if (name === 'service_area') {
+      if (value && value !== '__ALL__') {
+        const currentSolutions = solutions.length > 0 ? solutions : await loadSolutionsForDropdown()
+        const filtered = [...new Set(currentSolutions
+          .filter(s => s.service_area === value)
+          .map(s => s.solution_type)
+          .filter(Boolean))]
+        setFilteredSolutionTypes(filtered)
+      } else {
+        setFilteredSolutionTypes([])
+      }
+    }
+  }
+
+  // 수정 폼 제출 처리
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    
+    console.log('수정 폼 제출 - 현재 editForm:', editForm)
+    console.log('수정 폼 제출 - editingSolution:', editingSolution)
+    
+    // 필수 필드 검증
+    if (!editForm.service_area) {
+      alert('서비스영역을 선택해주세요.')
+      document.querySelector('select[name="service_area"]').focus()
+      return
+    }
+    
+    if (!editForm.solution_type) {
+      alert('솔루션구분을 입력해주세요.')
+      document.querySelector('input[name="solution_type"]').focus()
+      return
+    }
+    
+    if (!editForm.solution_name) {
+      alert('솔루션명을 입력해주세요.')
+      document.querySelector('input[name="solution_name"]').focus()
+      return
+    }
+    
+    try {
+      console.log('수정 요청 데이터:', { id: editingSolution.solution_id, data: editForm })
+      const result = await solutionAPI.updateSolution(editingSolution.solution_id, editForm)
+      console.log('수정 API 응답:', result)
+      alert('솔루션이 성공적으로 수정되었습니다.')
+      
+      // 수정 폼 초기화
+      setEditForm({
+        service_area: '',
+        solution_type: '',
+        solution_name: '',
+        license_policy: '',
+        vendor: '',
+        vendor_contact: '',
+        vendor_phone: '',
+        vendor_email: '',
+        supplier: '',
+        supplier_contact: '',
+        supplier_phone: '',
+        supplier_email: '',
+        remarks: ''
+      })
+      setEditingSolution(null)
+      setEditSearchForm({
+        service_area: '',
+        solution_type: '',
+        solution_name: ''
+      })
+      setEditSearchResults([])
+      setEditSearchPerformed(false)
+      
+      // 수정된 솔루션의 서비스영역 저장
+      const updatedServiceArea = editForm.service_area
+      
+      // 목록화면으로 이동
+      onViewChange('list')
+      
+      // 해당 서비스영역으로 재조회
+      setTimeout(async () => {
+        try {
+          console.log('수정 후 재조회 시작 - 서비스영역:', updatedServiceArea)
+          
+          // 전체 데이터 로드
+          const loadedSolutions = await loadSolutions()
+          console.log('수정 후 전체 데이터 로드 완료:', loadedSolutions.length)
+          
+          // 해당 서비스영역으로 필터링
+          const filteredSolutions = loadedSolutions.filter(solution => 
+            solution.service_area === updatedServiceArea
+          )
+          console.log('수정 후 필터링 완료:', filteredSolutions.length, '건')
+          
+          // 검색 폼 설정
+          setSearchForm(prev => ({
+            ...prev,
+            service_area: updatedServiceArea,
+            solution_type: '',
+            solution_name: ''
+          }))
+          
+          // 검색 결과 설정
+          setSearchResults(filteredSolutions)
+          setSearchPerformed(true)
+          
+          console.log('수정 후 서비스영역 재조회 완료:', updatedServiceArea, filteredSolutions.length)
+        } catch (error) {
+          console.error('수정 후 재조회 오류:', error)
+          alert('데이터 재조회에 실패했습니다.')
+        }
+      }, 200)
+      
+    } catch (error) {
+      console.error('솔루션 수정 실패:', error)
+      alert('솔루션 수정에 실패했습니다.')
+    }
+  }
+
+  // 수정 취소 처리
+  const handleEditCancel = () => {
+    setEditForm({
+      service_area: '',
+      solution_type: '',
+      solution_name: '',
+      license_policy: '',
+      vendor: '',
+      vendor_contact: '',
+      vendor_phone: '',
+      vendor_email: '',
+      supplier: '',
+      supplier_contact: '',
+      supplier_phone: '',
+      supplier_email: '',
+      remarks: ''
+    })
+    setEditingSolution(null)
+    setEditSearchForm({
+      service_area: '',
+      solution_type: '',
+      solution_name: ''
+    })
+    setEditSearchResults([])
+    setEditSearchPerformed(false)
+    onViewChange('list')
+  }
+
+  // 수정화면 검색 폼 변경 처리
+  const handleEditSearchChange = async (e) => {
+    const { name, value } = e.target
+    setEditSearchForm(prev => ({ ...prev, [name]: value }))
+    
+    // 서비스영역이 변경되면 솔루션구분 필터링
+    if (name === 'service_area') {
+      if (value && value !== '__ALL__') {
+        const currentSolutions = solutions.length > 0 ? solutions : await loadSolutionsForDropdown()
+        const filtered = [...new Set(currentSolutions
+          .filter(s => s.service_area === value)
+          .map(s => s.solution_type)
+          .filter(Boolean))]
+        setFilteredSolutionTypes(filtered)
+      } else {
+        setFilteredSolutionTypes([])
+      }
+    }
+  }
+
+  // 수정화면 검색 처리
+  const handleEditSearch = async () => {
+    const { service_area, solution_type, solution_name } = editSearchForm
+    
+    // 검색 조건 확인 (서비스영역 "전체"도 유효한 조건으로 인식)
+    const hasSearchConditions = service_area || 
+                               solution_type || 
+                               solution_name
+    
+    if (!hasSearchConditions) {
+      alert('검색 조건을 하나 이상 선택하여 주시기 바랍니다.')
+      return
+    }
+    
+    try {
+      // 데이터가 없으면 로드
+      let currentSolutions = solutions
+      if (solutions.length === 0) {
+        currentSolutions = await loadSolutions()
+      }
+      
+      let filteredResults = [...currentSolutions]
+      
+      // 서비스영역 필터링
+      if (service_area && service_area !== '__ALL__') {
+        filteredResults = filteredResults.filter(solution => 
+          solution.service_area === service_area
+        )
+      }
+      
+      // 솔루션구분 필터링
+      if (solution_type) {
+        filteredResults = filteredResults.filter(solution => 
+          solution.solution_type === solution_type
+        )
+      }
+      
+      // 솔루션명 필터링 (Like 검색)
+      if (solution_name) {
+        const searchPattern = solution_name.replace(/\*/g, '.*')
+        const regex = new RegExp(searchPattern, 'i')
+        filteredResults = filteredResults.filter(solution => 
+          regex.test(solution.solution_name)
+        )
+      }
+      
+      if (filteredResults.length === 0) {
+        alert('검색 조건에 맞는 데이터가 없습니다.')
+        setEditSearchResults([])
+        setEditSearchPerformed(false)
+        return
+      }
+      
+      setEditSearchResults(filteredResults)
+      setEditSearchPerformed(true)
+      
+    } catch (error) {
+      console.error('수정화면 검색 오류:', error)
+      alert('검색 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 수정화면 검색 초기화
+  const handleEditSearchReset = () => {
+    setEditSearchForm({
+      service_area: '',
+      solution_type: '',
+      solution_name: ''
+    })
+    setEditSearchResults([])
+    setEditSearchPerformed(false)
+    setFilteredSolutionTypes([])
+  }
+
+  // 수정 버튼 클릭 처리
+  const handleEditClick = (solution) => {
+    console.log('수정 버튼 클릭 - 솔루션 데이터:', solution)
+    setEditingSolution(solution)
+    setEditForm({
+      service_area: solution.service_area || '',
+      solution_type: solution.solution_type || '',
+      solution_name: solution.solution_name || '',
+      license_policy: solution.license_policy || '',
+      vendor: solution.vendor || '',
+      vendor_contact: solution.vendor_contact || '',
+      vendor_phone: solution.vendor_phone || '',
+      vendor_email: solution.vendor_email || '',
+      supplier: solution.supplier || '',
+      supplier_contact: solution.supplier_contact || '',
+      supplier_phone: solution.supplier_phone || '',
+      supplier_email: solution.supplier_email || '',
+      remarks: solution.remarks || ''
+    })
+    console.log('수정 폼 설정 완료:', {
+      solution_id: solution.solution_id,
+      service_area: solution.service_area || '',
+      solution_type: solution.solution_type || '',
+      solution_name: solution.solution_name || ''
+    })
+    onViewChange('edit')
   }
 
   // 일괄등록 실행 함수
@@ -802,6 +1114,463 @@ const SolutionManager = ({ currentView, onViewChange }) => {
       console.error('솔루션 등록 실패:', error)
       alert('솔루션 등록에 실패했습니다.')
     }
+  }
+
+  const renderEditView = () => {
+    console.log('수정 화면 렌더링 - editForm:', editForm)
+    console.log('수정 화면 렌더링 - editingSolution:', editingSolution)
+    
+    return (
+      <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{ margin: 0, color: '#2c3e50', textAlign: 'left' }}>솔루션 수정</h3>
+        </div>
+        
+        {/* 수정 대상 검색 */}
+        {!editingSolution && (
+          <div style={{
+            border: '1px solid #e9ecef',
+            borderRadius: '5px',
+            padding: '20px',
+            marginBottom: '20px',
+            backgroundColor: '#f8f9fa'
+          }}>
+            <h4 style={{ margin: '0 0 15px 0', color: '#495057' }}>수정할 솔루션 검색</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '14px' }}>서비스영역:</label>
+                <select
+                  name="service_area"
+                  value={editSearchForm.service_area}
+                  onChange={handleEditSearchChange}
+                  style={{
+                    padding: '6px 8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    minWidth: '100px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">선택하세요</option>
+                  <option value="__ALL__">전체</option>
+                  {serviceAreas.map(area => (
+                    <option key={area.id} value={area.service_area}>{area.service_area}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '14px' }}>솔루션구분:</label>
+                <select
+                  name="solution_type"
+                  value={editSearchForm.solution_type}
+                  onChange={handleEditSearchChange}
+                  style={{
+                    padding: '6px 8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    minWidth: '100px',
+                    fontSize: '14px'
+                  }}
+                  disabled={!editSearchForm.service_area || editSearchForm.service_area === '__ALL__'}
+                >
+                  <option value="">선택하세요</option>
+                  {filteredSolutionTypes.map((type, index) => (
+                    <option key={index} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '14px' }}>솔루션명:</label>
+                <input
+                  type="text"
+                  name="solution_name"
+                  value={editSearchForm.solution_name}
+                  onChange={handleEditSearchChange}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleEditSearch()
+                    }
+                  }}
+                  style={{
+                    padding: '6px 8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    width: '120px',
+                    fontSize: '14px'
+                  }}
+                  placeholder="솔루션명"
+                />
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={handleEditSearch}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  검색
+                </button>
+                <button
+                  onClick={handleEditSearchReset}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  초기화
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* 검색 결과 테이블 */}
+        {!editingSolution && editSearchPerformed && (
+          <div style={{
+            border: '1px solid #e9ecef',
+            borderRadius: '5px',
+            overflow: 'hidden',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              border: '1px solid #e9ecef',
+              borderRadius: '5px',
+              overflow: 'hidden',
+              overflowX: 'auto',
+              maxHeight: '400px',
+              overflowY: 'auto',
+              position: 'relative'
+            }}>
+              <table style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontSize: '12px',
+                tableLayout: 'fixed',
+                fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif'
+              }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                  <tr style={{ backgroundColor: '#e9ecef' }}>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '80px' }}>선택</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>서비스영역</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>솔루션구분</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '150px' }}>솔루션명</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>라이선스정책</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>벤더사</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>벤더사담당자</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>벤더사연락처</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>벤더사이메일</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>납품업체</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>납품업체담당자</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>납품업체연락처</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>납품업체이메일</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '200px' }}>비고</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {editSearchResults.map((solution, index) => (
+                    <tr key={solution.solution_id || index} style={{ 
+                      backgroundColor: 'white',
+                      borderBottom: '1px solid #dee2e6'
+                    }}>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', width: '80px' }}>
+                        <button
+                          onClick={() => handleEditClick(solution)}
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#ffc107',
+                            color: '#000',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          선택
+                        </button>
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.service_area || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.solution_type || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.solution_name || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.license_policy || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.vendor || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.vendor_contact || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.vendor_phone || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.vendor_email || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.supplier || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.supplier_contact || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.supplier_phone || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.supplier_email || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.remarks || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        
+        {/* 수정 폼 */}
+        {editingSolution && (
+          <form onSubmit={handleEditSubmit}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {/* 서비스영역, 솔루션구분 */}
+              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>서비스영역:</label>
+                  <select
+                    name="service_area"
+                    value={editForm.service_area}
+                    onChange={handleEditChange}
+                    required
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  >
+                    <option value="">선택하세요</option>
+                    {serviceAreas.map(area => (
+                      <option key={area.id} value={area.service_area}>{area.service_area}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>솔루션구분:</label>
+                  <input
+                    type="text"
+                    name="solution_type"
+                    value={editForm.solution_type}
+                    onChange={handleEditChange}
+                    required
+                    placeholder="솔루션구분을 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 솔루션명, 라이선스 정책 */}
+              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>솔루션명:</label>
+                  <input
+                    type="text"
+                    name="solution_name"
+                    value={editForm.solution_name}
+                    onChange={handleEditChange}
+                    required
+                    placeholder="솔루션명을 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>라이선스 정책:</label>
+                  <input
+                    type="text"
+                    name="license_policy"
+                    value={editForm.license_policy}
+                    onChange={handleEditChange}
+                    placeholder="라이선스 정책을 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 벤더사, 벤더사 담당자 */}
+              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>벤더사:</label>
+                  <input
+                    type="text"
+                    name="vendor"
+                    value={editForm.vendor}
+                    onChange={handleEditChange}
+                    placeholder="벤더사를 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>벤더사 담당자:</label>
+                  <input
+                    type="text"
+                    name="vendor_contact"
+                    value={editForm.vendor_contact}
+                    onChange={handleEditChange}
+                    placeholder="벤더사 담당자를 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 벤더사 연락처, 벤더사 이메일 */}
+              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>벤더사 연락처:</label>
+                  <input
+                    type="text"
+                    name="vendor_phone"
+                    value={editForm.vendor_phone}
+                    onChange={handleEditChange}
+                    placeholder="벤더사 연락처를 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>벤더사 이메일:</label>
+                  <input
+                    type="text"
+                    name="vendor_email"
+                    value={editForm.vendor_email}
+                    onChange={handleEditChange}
+                    placeholder="벤더사 이메일을 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 납품업체, 납품업체 담당자 */}
+              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>납품업체:</label>
+                  <input
+                    type="text"
+                    name="supplier"
+                    value={editForm.supplier}
+                    onChange={handleEditChange}
+                    placeholder="납품업체를 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>납품업체 담당자:</label>
+                  <input
+                    type="text"
+                    name="supplier_contact"
+                    value={editForm.supplier_contact}
+                    onChange={handleEditChange}
+                    placeholder="납품업체 담당자를 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 납품업체 연락처, 납품업체 이메일 */}
+              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>납품업체 연락처:</label>
+                  <input
+                    type="text"
+                    name="supplier_phone"
+                    value={editForm.supplier_phone}
+                    onChange={handleEditChange}
+                    placeholder="납품업체 연락처를 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>납품업체 이메일:</label>
+                  <input
+                    type="text"
+                    name="supplier_email"
+                    value={editForm.supplier_email}
+                    onChange={handleEditChange}
+                    placeholder="납품업체 이메일을 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px' }}
+                  />
+                </div>
+              </div>
+
+              {/* 비고 */}
+              <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: '1 1 300px', minWidth: '300px' }}>
+                  <label style={{ minWidth: '100px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', marginTop: '6px' }}>비고:</label>
+                  <textarea
+                    name="remarks"
+                    value={editForm.remarks}
+                    onChange={handleEditChange}
+                    placeholder="비고를 입력하세요"
+                    style={{ flex: 1, padding: '6px 8px', fontSize: '14px', minHeight: '80px', resize: 'vertical' }}
+                  />
+                </div>
+              </div>
+
+              {/* 버튼 */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={handleEditCancel}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '14px'
+                  }}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '14px'
+                  }}
+                >
+                  수정
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+      </div>
+    )
   }
 
   const renderAddView = () => (
@@ -1611,6 +2380,7 @@ const SolutionManager = ({ currentView, onViewChange }) => {
   return (
     <div>
       {currentView === 'add' && renderAddView()}
+      {currentView === 'edit' && renderEditView()}
       {currentView === 'list' && renderListView()}
       {currentView === 'service-areas' && renderServiceAreaView()}
     </div>
