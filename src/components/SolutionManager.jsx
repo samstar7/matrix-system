@@ -58,6 +58,16 @@ const SolutionManager = ({ currentView, onViewChange }) => {
   
   const [editSearchResults, setEditSearchResults] = useState([])
   const [editSearchPerformed, setEditSearchPerformed] = useState(false)
+  
+  // 삭제화면 관련 상태
+  const [deleteSearchForm, setDeleteSearchForm] = useState({
+    service_area: '',
+    solution_type: '',
+    solution_name: ''
+  })
+  const [deleteSearchResults, setDeleteSearchResults] = useState([])
+  const [deleteSearchPerformed, setDeleteSearchPerformed] = useState(false)
+  const [deletingSolution, setDeletingSolution] = useState(null)
 
   useEffect(() => {
     loadServiceAreas()
@@ -95,6 +105,33 @@ const SolutionManager = ({ currentView, onViewChange }) => {
           setFilteredSolutionTypes(filtered)
         })
       }
+    }
+    
+    // 삭제화면 진입 시 검색 조건 초기화
+    if (currentView === 'delete') {
+      setDeleteSearchForm({
+        service_area: '',
+        solution_type: '',
+        solution_name: ''
+      })
+      setDeleteSearchResults([])
+      setDeleteSearchPerformed(false)
+      setDeletingSolution(null)
+      setFilteredSolutionTypes([])
+    }
+    
+    // 목록화면 진입 시 검색 조건 초기화
+    if (currentView === 'list') {
+      setSearchForm({
+        service_area: '',
+        solution_type: '',
+        solution_name: ''
+      })
+      setSearchResults([])
+      setSearchPerformed(false)
+      setFilteredSolutionTypes([])
+      setSolutions([])
+      setGroupedSolutions([])
     }
   }, [currentView, editingSolution])
 
@@ -700,6 +737,178 @@ const SolutionManager = ({ currentView, onViewChange }) => {
       solution_name: solution.solution_name || ''
     })
     onViewChange('edit')
+  }
+
+  // 삭제화면 검색 폼 변경 처리
+  const handleDeleteSearchChange = async (e) => {
+    const { name, value } = e.target
+    setDeleteSearchForm(prev => ({ ...prev, [name]: value }))
+    
+    // 서비스영역이 변경되면 솔루션구분 필터링
+    if (name === 'service_area') {
+      if (value && value !== '__ALL__') {
+        // 솔루션 데이터가 없으면 로드
+        let currentSolutions = solutions
+        if (solutions.length === 0) {
+          currentSolutions = await loadSolutions()
+        }
+        
+        const filtered = [...new Set(currentSolutions
+          .filter(s => s.service_area === value)
+          .map(s => s.solution_type)
+          .filter(Boolean))]
+        setFilteredSolutionTypes(filtered)
+      } else {
+        setFilteredSolutionTypes([])
+      }
+    }
+  }
+
+  // 삭제화면 검색 처리
+  const handleDeleteSearch = async () => {
+    const { service_area, solution_type, solution_name } = deleteSearchForm
+    
+    // 검색 조건 확인 (서비스영역 "전체"도 유효한 조건으로 인식)
+    const hasSearchConditions = service_area || 
+                               solution_type || 
+                               solution_name
+    
+    if (!hasSearchConditions) {
+      alert('검색 조건을 하나 이상 선택하여 주시기 바랍니다.')
+      return
+    }
+    
+    try {
+      // 데이터가 없으면 로드
+      let currentSolutions = solutions
+      if (solutions.length === 0) {
+        currentSolutions = await loadSolutions()
+      }
+      
+      let filteredResults = [...currentSolutions]
+      
+      // 서비스영역 필터링
+      if (service_area && service_area !== '__ALL__') {
+        filteredResults = filteredResults.filter(solution => 
+          solution.service_area === service_area
+        )
+      }
+      
+      // 솔루션구분 필터링
+      if (solution_type) {
+        filteredResults = filteredResults.filter(solution => 
+          solution.solution_type === solution_type
+        )
+      }
+      
+      // 솔루션명 필터링 (Like 검색)
+      if (solution_name) {
+        const searchPattern = solution_name.replace(/\*/g, '.*')
+        const regex = new RegExp(searchPattern, 'i')
+        filteredResults = filteredResults.filter(solution => 
+          regex.test(solution.solution_name)
+        )
+      }
+      
+      if (filteredResults.length === 0) {
+        alert('검색 조건에 맞는 데이터가 없습니다.')
+        setDeleteSearchResults([])
+        setDeleteSearchPerformed(false)
+        return
+      }
+      
+      setDeleteSearchResults(filteredResults)
+      setDeleteSearchPerformed(true)
+      
+    } catch (error) {
+      console.error('삭제화면 검색 오류:', error)
+      alert('검색 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 삭제화면 검색 초기화
+  const handleDeleteSearchReset = () => {
+    setDeleteSearchForm({
+      service_area: '',
+      solution_type: '',
+      solution_name: ''
+    })
+    setDeleteSearchResults([])
+    setDeleteSearchPerformed(false)
+    setFilteredSolutionTypes([])
+  }
+
+  // 삭제 버튼 클릭 처리
+  const handleDeleteClick = (solution) => {
+    console.log('삭제 버튼 클릭 - 솔루션 데이터:', solution)
+    setDeletingSolution(solution)
+  }
+
+  // 삭제 확인 처리
+  const handleDeleteConfirm = async () => {
+    if (!deletingSolution) return
+    
+    try {
+      console.log('삭제 요청 데이터:', { id: deletingSolution.solution_id })
+      
+      const result = await solutionAPI.deleteSolution(deletingSolution.solution_id)
+      console.log('삭제 API 응답:', result)
+      
+      alert('솔루션이 성공적으로 삭제되었습니다.')
+      
+      // 삭제 상태 초기화
+      setDeletingSolution(null)
+      setDeleteSearchResults([])
+      setDeleteSearchPerformed(false)
+      
+      // 삭제된 솔루션의 서비스영역 저장
+      const deletedServiceArea = deletingSolution.service_area
+      
+      // 목록화면으로 이동
+      onViewChange('list')
+      
+      // 삭제 후 재조회
+      setTimeout(async () => {
+        try {
+          console.log('삭제 후 재조회 시작 - 서비스영역:', deletedServiceArea)
+          
+          // 전체 데이터 로드
+          const loadedSolutions = await loadSolutions()
+          console.log('삭제 후 전체 데이터 로드 완료:', loadedSolutions.length)
+          
+          // 삭제된 솔루션의 서비스영역으로 필터링
+          const filteredSolutions = loadedSolutions.filter(s => 
+            s.service_area === deletedServiceArea
+          )
+          console.log('삭제 후 필터링 완료:', filteredSolutions.length, '건')
+          
+          // 검색 결과 설정
+          setSearchResults(filteredSolutions)
+          setSearchPerformed(true)
+          
+          // 검색 폼 설정
+          setSearchForm(prev => ({
+            ...prev,
+            service_area: deletedServiceArea,
+            solution_type: '',
+            solution_name: ''
+          }))
+          
+          console.log('삭제 후 서비스영역 재조회 완료:', deletedServiceArea, filteredSolutions.length)
+        } catch (error) {
+          console.error('삭제 후 재조회 오류:', error)
+        }
+      }, 300)
+      
+    } catch (error) {
+      console.error('솔루션 삭제 실패:', error)
+      alert('솔루션 삭제에 실패했습니다.')
+    }
+  }
+
+  // 삭제 취소 처리
+  const handleDeleteCancel = () => {
+    setDeletingSolution(null)
   }
 
   // 일괄등록 실행 함수
@@ -2118,7 +2327,14 @@ const SolutionManager = ({ currentView, onViewChange }) => {
   const renderListView = () => (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h3 style={{ margin: 0, color: '#2c3e50' }}>솔루션 목록조회</h3>
+        <h3 style={{ margin: 0, color: '#2c3e50' }}>
+          솔루션 목록조회
+          {searchPerformed && (searchPerformed ? searchResults : solutions).length > 0 && (
+            <span style={{ color: '#007bff', fontSize: '0.9em', fontWeight: 'normal' }}>
+              ({searchPerformed ? searchResults.length : solutions.length}건)
+            </span>
+          )}
+        </h3>
         <button
           onClick={handleExcelDownload}
           disabled={(searchPerformed ? searchResults : solutions).length === 0}
@@ -2282,34 +2498,40 @@ const SolutionManager = ({ currentView, onViewChange }) => {
             <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
               <tr style={{ backgroundColor: '#E9ECEF' }}>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '150px' }}>서비스영역</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>솔루션구분</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '140px' }}>솔루션구분</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '200px' }}>솔루션명</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '150px' }}>라이선스 정책</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '150px' }}>벤더사</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '120px' }}>벤더사담당자</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '120px' }}>벤더사연락처</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>벤더사메일</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>납품업체</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>납품업체담당자</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '150px' }}>납품업체</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '120px' }}>납품업체담당자</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', minWidth: '120px' }}>납품업체연락처</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold' }}>납품업체메일</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6', whiteSpace: 'nowrap', fontWeight: 'bold', width: '300px', minWidth: '300px' }}>비고</th>
               </tr>
             </thead>
             <tbody>
-              {Array.isArray(searchPerformed ? searchResults : solutions) ? 
+              {loading ? (
+                <tr>
+                  <td colSpan="13" style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
+                    데이터를 불러오는 중입니다...
+                  </td>
+                </tr>
+              ) : Array.isArray(searchPerformed ? searchResults : solutions) && (searchPerformed ? searchResults : solutions).length > 0 ? 
                 (searchPerformed ? searchResults : solutions).map((solution, index) => (
                   <tr key={solution.id || index} style={{ borderBottom: '1px solid #dee2e6' }}>
                     <td style={{ padding: '12px', textAlign: 'center', minWidth: '150px' }}>{solution.service_area || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.solution_type || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '140px' }}>{solution.solution_type || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center', minWidth: '200px' }}>{solution.solution_name || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center', minWidth: '150px' }}>{solution.license_policy || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center', minWidth: '150px' }}>{solution.vendor || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center', minWidth: '120px' }}>{solution.vendor_contact || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center', minWidth: '120px' }}>{solution.vendor_phone || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>{solution.vendor_email || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.supplier || ''}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{solution.supplier_contact || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '150px' }}>{solution.supplier || ''}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', minWidth: '120px' }}>{solution.supplier_contact || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center', minWidth: '120px' }}>{solution.supplier_phone || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>{solution.supplier_email || ''}</td>
                     <td style={{ padding: '12px', textAlign: 'left', width: '300px', minWidth: '300px' }}>{solution.remarks || ''}</td>
@@ -2317,7 +2539,7 @@ const SolutionManager = ({ currentView, onViewChange }) => {
                 )) : 
                 <tr>
                   <td colSpan="13" style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
-                    데이터를 불러오는 중입니다...
+                    {searchPerformed ? '검색 조건에 맞는 데이터가 없습니다.' : '검색 조건을 입력하여 데이터를 조회해주세요.'}
                   </td>
                 </tr>
               }
@@ -2377,10 +2599,316 @@ const SolutionManager = ({ currentView, onViewChange }) => {
     </div>
   )
 
+  // 삭제화면 렌더링
+  const renderDeleteView = () => {
+    return (
+      <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{ margin: 0, color: '#2c3e50', textAlign: 'left' }}>솔루션 삭제</h3>
+        </div>
+        
+        {/* 삭제 대상 검색 */}
+        <div style={{
+          border: '1px solid #e9ecef',
+          borderRadius: '5px',
+          padding: '20px',
+          marginBottom: '20px',
+          backgroundColor: '#f8f9fa'
+        }}>
+          <h4 style={{ margin: '0 0 15px 0', color: '#495057' }}>삭제할 솔루션 검색</h4>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '14px' }}>서비스영역:</label>
+              <select
+                name="service_area"
+                value={deleteSearchForm.service_area}
+                onChange={handleDeleteSearchChange}
+                style={{
+                  padding: '6px 8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  minWidth: '100px',
+                  fontSize: '14px'
+                }}
+              >
+                <option value="">선택하세요</option>
+                <option value="__ALL__">전체</option>
+                {serviceAreas.map(area => (
+                  <option key={area.id} value={area.service_area}>{area.service_area}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '14px' }}>솔루션구분:</label>
+              <select
+                name="solution_type"
+                value={deleteSearchForm.solution_type}
+                onChange={handleDeleteSearchChange}
+                style={{
+                  padding: '6px 8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  minWidth: '100px',
+                  fontSize: '14px'
+                }}
+                disabled={!deleteSearchForm.service_area || deleteSearchForm.service_area === '__ALL__'}
+              >
+                <option value="">선택하세요</option>
+                {filteredSolutionTypes.map((type, index) => (
+                  <option key={index} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '14px' }}>솔루션명:</label>
+              <input
+                type="text"
+                name="solution_name"
+                value={deleteSearchForm.solution_name}
+                onChange={handleDeleteSearchChange}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleDeleteSearch()
+                  }
+                }}
+                style={{
+                  padding: '6px 8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  width: '120px',
+                  fontSize: '14px'
+                }}
+                placeholder="솔루션명"
+              />
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleDeleteSearch}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                검색
+              </button>
+              <button
+                onClick={handleDeleteSearchReset}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                초기화
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* 검색 결과 테이블 */}
+        {deleteSearchPerformed && (
+          <div style={{
+            border: '1px solid #e9ecef',
+            borderRadius: '5px',
+            overflow: 'hidden',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              border: '1px solid #e9ecef',
+              borderRadius: '5px',
+              overflow: 'hidden',
+              overflowX: 'auto',
+              maxHeight: '400px',
+              overflowY: 'auto',
+              position: 'relative'
+            }}>
+              <table style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontSize: '12px',
+                tableLayout: 'fixed',
+                fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif'
+              }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                  <tr style={{ backgroundColor: '#e9ecef' }}>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '80px' }}>삭제</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>서비스영역</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>솔루션구분</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '150px' }}>솔루션명</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>라이선스정책</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>벤더사</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>벤더사담당자</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>벤더사연락처</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>벤더사이메일</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>납품업체</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '100px' }}>납품업체담당자</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>납품업체연락처</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '120px' }}>납품업체이메일</th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', fontWeight: 'bold', width: '200px' }}>비고</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deleteSearchResults.map((solution, index) => (
+                    <tr key={solution.solution_id || index} style={{ 
+                      backgroundColor: 'white',
+                      borderBottom: '1px solid #dee2e6'
+                    }}>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', width: '80px' }}>
+                        <button
+                          onClick={() => handleDeleteClick(solution)}
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.service_area || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.solution_type || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.solution_name || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.license_policy || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.vendor || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.vendor_contact || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.vendor_phone || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.vendor_email || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.supplier || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.supplier_contact || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.supplier_phone || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.supplier_email || '-'}
+                      </td>
+                      <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", "Nanum Gothic", sans-serif' }}>
+                        {solution.remarks || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        
+        {/* 삭제 확인 팝업 */}
+        {deletingSolution && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'white',
+            padding: '30px',
+            borderRadius: '8px',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            border: '1px solid #dee2e6',
+            zIndex: 1000
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', color: '#dc3545' }}>삭제 확인</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '16px', lineHeight: '1.5' }}>
+              다음 솔루션을 삭제하시겠습니까?
+            </p>
+            <div style={{
+              backgroundColor: '#f8f9fa',
+              padding: '15px',
+              borderRadius: '5px',
+              marginBottom: '20px',
+              border: '1px solid #dee2e6'
+            }}>
+              <p style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>서비스영역: {deletingSolution.service_area}</p>
+              <p style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>솔루션구분: {deletingSolution.solution_type}</p>
+              <p style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>솔루션명: {deletingSolution.solution_name}</p>
+              <p style={{ margin: '0', fontWeight: 'bold' }}>벤더사: {deletingSolution.vendor}</p>
+            </div>
+            <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#6c757d' }}>
+              삭제된 데이터는 복구할 수 없습니다.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={handleDeleteCancel}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div>
       {currentView === 'add' && renderAddView()}
       {currentView === 'edit' && renderEditView()}
+      {currentView === 'delete' && renderDeleteView()}
       {currentView === 'list' && renderListView()}
       {currentView === 'service-areas' && renderServiceAreaView()}
     </div>

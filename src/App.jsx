@@ -58,6 +58,7 @@ function App() {
         { id: 'list', name: '조회', icon: '📋' },
         { id: 'add', name: '등록', icon: '➕' },
         { id: 'edit', name: '수정', icon: '✏️' },
+        { id: 'delete', name: '삭제', icon: '🗑️' },
         { id: 'service-areas', name: '서비스영역 조회', icon: '🏷️' }
       ]
     },
