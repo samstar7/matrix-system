@@ -40,6 +40,19 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
 
   const [searchResults, setSearchResults] = useState([]);
   const [searchPerformed, setSearchPerformed] = useState(false);
+  const [previousView, setPreviousView] = useState('list');
+  const [salesRepList, setSalesRepList] = useState([]);
+
+  // 영업대표 목록 추출
+  const extractSalesRepList = (projects) => {
+    const salesReps = [...new Set(projects.map(project => project.sales_rep).filter(Boolean))];
+    console.log('추출된 영업대표 목록:', salesReps);
+    console.log('영업대표 목록 길이:', salesReps.length);
+    console.log('영업대표 목록 내용:', JSON.stringify(salesReps));
+    return salesReps.sort();
+  };
+
+
 
   // 프로젝트 목록 로드
   const loadProjectList = async () => {
@@ -47,9 +60,14 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
     try {
       const data = await getProjectList();
       setProjectList(data);
+      // projects 테이블에서 영업대표 목록 추출 (중복 제거)
+      const salesReps = extractSalesRepList(data);
+      setSalesRepList(salesReps);
     } catch (error) {
       console.error('프로젝트 목록 로드 오류:', error);
       alert('프로젝트 목록을 불러오는데 실패했습니다.');
+      // API 실패 시 빈 배열로 설정
+      setSalesRepList([]);
     } finally {
       setLoading(false);
     }
@@ -58,6 +76,11 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
   useEffect(() => {
     loadProjectList();
   }, []);
+
+  // 디버깅용: salesRepList 상태 변화 추적
+  useEffect(() => {
+    console.log('salesRepList 상태 변화:', salesRepList);
+  }, [salesRepList]);
 
   // 정렬된 목록
   const sortedList = React.useMemo(() => {
@@ -230,6 +253,12 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
       presentationDate: project.presentation_date || '',
       status: project.status
     });
+    // 현재 화면을 이전 화면으로 저장
+    setPreviousView(currentView);
+    // 영업대표 목록 업데이트 (projects 테이블에서 중복 제거)
+    const salesReps = extractSalesRepList(projectList);
+    setSalesRepList(salesReps);
+    console.log('수정화면 진입 시 영업대표 목록:', salesReps);
     onViewChange('edit');
   };
 
@@ -305,7 +334,7 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
     onViewChange('list');
   };
 
-  // 수정화면 취소 (목록화면으로 돌아가기)
+  // 수정화면 취소 (이전 화면으로 돌아가기)
   const handleEditCancel = () => {
     console.log('취소 버튼 클릭됨, 현재 editingId:', editingId);
     setEditingId(null);
@@ -329,8 +358,8 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
       salesRep: ''
     });
     console.log('editingId가 null로 설정됨, editingId:', editingId);
-    // 목록 화면으로 돌아가기
-    onViewChange('list');
+    // 이전 화면으로 돌아가기
+    onViewChange(previousView);
   };
 
   // 등록 화면으로 이동
@@ -993,7 +1022,7 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
             fontSize: '14px'
           }}
         >
-          입력내용 삭제
+                          초기화
         </button>
                   <button
             type="button"
@@ -1031,7 +1060,7 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
             borderRadius: '8px',
             border: '1px solid #dee2e6'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'nowrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '200px' }}>
                 <label style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>
                   프로젝트명
@@ -1072,52 +1101,60 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
                 <label style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>
                   영업대표
                 </label>
-                <input
+                <select
                   name="salesRep"
                   value={searchForm.salesRep}
                   onChange={handleSearchChange}
-                  placeholder="영업대표"
                   style={{
                     width: '100px',
                     padding: '8px',
                     border: '1px solid #ddd',
                     borderRadius: '4px',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    backgroundColor: 'white',
+                    cursor: 'pointer'
                   }}
-                />
+                >
+                  <option value="">전체</option>
+                  {salesRepList.map((salesRep, index) => (
+                    <option key={index} value={salesRep}>{salesRep}</option>
+                  ))}
+                </select>
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={handleSearch}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                🔍 검색
-              </button>
-              <button
-                type="button"
-                onClick={handleSearchReset}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '14px'
+              <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  🔍 검색
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSearchReset}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    whiteSpace: 'nowrap'
                 }}
               >
                 초기화
               </button>
+              </div>
             </div>
           </div>
           
@@ -1211,7 +1248,7 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
       {/* 수정 폼 */}
       {editingId && (
         <form onSubmit={handleEdit} style={{ maxWidth: '1200px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '0.4fr 0.6fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '60px', textAlign: 'left' }}>
               고객사 *
@@ -1253,6 +1290,8 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
               }}
             />
           </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '50px', textAlign: 'left' }}>
               상태
@@ -1276,8 +1315,6 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
               <option value="실주">실주</option>
             </select>
           </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
               영업대표 *
@@ -1287,15 +1324,17 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
               value={editForm.salesRep}
               onChange={handleEditChange}
               required
-              maxLength={10}
+              maxLength={20}
               disabled={loading}
+              placeholder="영업대표를 입력하세요"
               style={{
                 flex: 1,
                 padding: '8px',
                 border: '1px solid #ddd',
                 borderRadius: '4px',
                 fontSize: '14px',
-                textAlign: 'left'
+                textAlign: 'left',
+                backgroundColor: 'white'
               }}
             />
           </div>
