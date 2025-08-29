@@ -128,7 +128,12 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
 
   // 컴포넌트 마운트 시 데이터 로드
   useEffect(() => {
-    loadHardwareList();
+    // 하드웨어 목록 초기화
+    setHardwareList([]);
+    setSelectedProjectId('');
+    setSortConfig({ key: null, direction: 'asc' });
+    
+    // 프로젝트 목록만 로드
     loadProjectList();
   }, []);
 
@@ -241,7 +246,7 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
       emptyCell.style.border = 'none';
       
       // 헤더 추가
-      const headers = ['하드웨어ID', '업무명', '용도', 'OS', '서버명', '서버구분', 'Core수', '메모리', 'OS디스크', '내장디스크', '공유디스크', 'NIC(서비스)', 'NIC(백업)', '등록일'];
+      const headers = ['업무명', '용도', 'OS', '서버명', '서버구분', 'Core수', '메모리(GB)', 'OS디스크(GB)', '내장디스크(GB)', '공유디스크(GB)', 'NIC(서비스)', 'NIC(백업) 25G FC Type 2port 기준수량'];
       
       // 데이터 준비
       const data = sortedList.map(hw => [
@@ -523,6 +528,121 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
     });
   };
 
+  // 템플릿 다운로드
+  const handleTemplateDownload = () => {
+    const headers = [
+      '프로젝트ID', '업무명', '용도', 'OS', '서버명', '서버타입', 'CPU코어', '메모리', 'OS디스크', '내장디스크', '공유디스크', 'NIC(서비스)', 'NIC(백업)'
+    ];
+    
+    // BOM 추가 및 샘플 데이터 포함
+    const bom = '\uFEFF';
+    const sampleData = [
+      'P001', '웹서버', '웹서비스', 'Windows Server 2019', 'WEB-SRV-01', 'VM', '4', '8GB', '100GB', '500GB', '', '192.168.1.100', '192.168.1.101'
+    ];
+    
+    const csvContent = bom + headers.join(',') + '\n' + sampleData.join(',');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', '하드웨어_등록_템플릿.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // CSV 파일 업로드 및 파싱
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // 파일 확장자 검증
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      alert('CSV 파일만 업로드 가능합니다.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        let text = e.target.result;
+        
+        // BOM 제거
+        if (text.charCodeAt(0) === 0xFEFF) {
+          text = text.slice(1);
+        }
+        
+        const lines = text.split('\n').filter(line => line.trim());
+        if (lines.length < 2) {
+          alert('CSV 파일에 데이터가 없습니다.');
+          return;
+        }
+        
+        const headers = lines[0].split(',').map(header => header.trim());
+        const expectedHeaders = [
+          '프로젝트ID', '업무명', '용도', 'OS', '서버명', '서버타입', 'CPU코어', '메모리', 'OS디스크', '내장디스크', '공유디스크', 'NIC(서비스)', 'NIC(백업)'
+        ];
+        
+        // 헤더 검증
+        if (headers.length !== expectedHeaders.length) {
+          alert(`CSV 파일의 컬럼 수가 맞지 않습니다. (예상: ${expectedHeaders.length}, 실제: ${headers.length})`);
+          return;
+        }
+        
+        const hardwareData = [];
+        for (let i = 1; i < lines.length; i++) {
+          if (lines[i].trim()) {
+            const values = lines[i].split(',').map(value => value.trim());
+            const row = {};
+            headers.forEach((header, index) => {
+              row[header] = values[index] || '';
+            });
+            hardwareData.push(row);
+          }
+        }
+        
+        // CSV 데이터를 하드웨어 목록에 추가
+        if (hardwareData.length > 0) {
+          const newHardwareList = hardwareData.map((item, index) => ({
+            project_id: item['프로젝트ID'] || '',
+            work_name: item['업무명'] || '',
+            purpose: item['용도'] || '',
+            os: item['OS'] || '',
+            server_name: item['서버명'] || '',
+            server_type: item['서버타입'] || '',
+            cores: item['CPU코어'] || '',
+            memory: item['메모리'] || '',
+            os_disk: item['OS디스크'] || '',
+            internal_disk: item['내장디스크'] || '',
+            shared_disk: item['공유디스크'] || '',
+            nic_service: item['NIC(서비스)'] || '',
+            nic_backup: item['NIC(백업)'] || ''
+          }));
+          
+          // 기존 하드웨어 목록에 추가
+          setHardwareList(prev => [...prev, ...newHardwareList]);
+          alert(`${hardwareData.length}건의 하드웨어가 일괄 등록되었습니다.`);
+        } else {
+          alert('업로드된 CSV 파일에 유효한 데이터가 없습니다.');
+        }
+      } catch (error) {
+        console.error('CSV 파싱 오류:', error);
+        alert('CSV 파일 처리 중 오류가 발생했습니다.');
+      }
+    };
+    
+    reader.onerror = () => {
+      alert('파일 읽기 중 오류가 발생했습니다.');
+    };
+    
+    reader.readAsText(file, 'UTF-8');
+    
+    // 파일 입력 초기화
+    event.target.value = '';
+  };
+
   // 등록 함수 추가
   const handleAdd = async () => {
     if (!form.project_id) {
@@ -626,7 +746,17 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
           <select
             value={selectedProjectId}
             onChange={(e) => {
-              setSelectedProjectId(e.target.value);
+              const projectId = e.target.value;
+              setSelectedProjectId(projectId);
+              
+              if (projectId) {
+                // 프로젝트가 선택된 경우에만 하드웨어 목록 로드
+                loadHardwareList();
+              } else {
+                // 프로젝트가 선택되지 않은 경우 하드웨어 목록 초기화
+                setHardwareList([]);
+              }
+              
               // 프로젝트 변경 시 하드웨어ID 오름차순으로 정렬 초기화
               setSortConfig({ key: 'hardware_id', direction: 'asc' });
             }}
@@ -652,13 +782,15 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
       ) : (
         <div style={{ overflowX: 'auto', maxWidth: '100%', border: '1px solid #ddd' }}>
           <table style={{
-            minWidth: '1800px',
             borderCollapse: 'collapse',
             border: '1px solid #ddd',
-            marginTop: '10px'
+            marginTop: '10px',
+            tableLayout: 'fixed',
+            width: '910px'
           }}>
             <thead>
               <tr style={{ backgroundColor: '#f2f2f2' }}>
+
                 <th style={{
                   border: '1px solid #ddd',
                   padding: '12px',
@@ -666,18 +798,10 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
-                }} onClick={() => handleSort('hardware_id')}>
-                  하드웨어ID {sortConfig.key === 'hardware_id' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                </th>
-                <th style={{
-                  border: '1px solid #ddd',
-                  padding: '12px',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  width: '80px',
+                  minWidth: '80px',
+                  maxWidth: '80px'
                 }} onClick={() => handleSort('work_name')}>
                   업무명 {sortConfig.key === 'work_name' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
@@ -688,7 +812,10 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  width: '80px',
+                  minWidth: '80px',
+                  maxWidth: '80px'
                 }} onClick={() => handleSort('purpose')}>
                   용도 {sortConfig.key === 'purpose' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
@@ -699,7 +826,10 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  width: '150px',
+                  minWidth: '150px',
+                  maxWidth: '150px'
                 }} onClick={() => handleSort('server_name')}>
                   서버명 {sortConfig.key === 'server_name' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
@@ -710,7 +840,10 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  width: '50px',
+                  minWidth: '50px',
+                  maxWidth: '50px'
                 }} onClick={() => handleSort('cores')}>
                   Core수 {sortConfig.key === 'cores' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
@@ -721,9 +854,13 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '50px',
+                  minWidth: '50px',
+                  maxWidth: '50px'
                 }} onClick={() => handleSort('memory')}>
-                  메모리 {sortConfig.key === 'memory' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                  메모리<br />(GB) {sortConfig.key === 'memory' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
                 <th style={{
                   border: '1px solid #ddd',
@@ -732,7 +869,10 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  width: '60px',
+                  minWidth: '60px',
+                  maxWidth: '60px'
                 }} onClick={() => handleSort('os')}>
                   OS {sortConfig.key === 'os' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
@@ -743,7 +883,10 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  width: '60px',
+                  minWidth: '60px',
+                  maxWidth: '60px'
                 }} onClick={() => handleSort('server_type')}>
                   서버구분 {sortConfig.key === 'server_type' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
@@ -754,9 +897,13 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '80px',
+                  minWidth: '80px',
+                  maxWidth: '80px'
                 }} onClick={() => handleSort('os_disk')}>
-                  OS디스크 {sortConfig.key === 'os_disk' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                  OS디스크<br />(GB) {sortConfig.key === 'os_disk' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
                 <th style={{
                   border: '1px solid #ddd',
@@ -765,9 +912,13 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '80px',
+                  minWidth: '80px',
+                  maxWidth: '80px'
                 }} onClick={() => handleSort('internal_disk')}>
-                  내장디스크 {sortConfig.key === 'internal_disk' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                  내장디스크<br />(GB) {sortConfig.key === 'internal_disk' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
                 <th style={{
                   border: '1px solid #ddd',
@@ -776,9 +927,13 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '80px',
+                  minWidth: '80px',
+                  maxWidth: '80px'
                 }} onClick={() => handleSort('shared_disk')}>
-                  공유디스크 {sortConfig.key === 'shared_disk' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                  공유디스크<br />(GB) {sortConfig.key === 'shared_disk' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
                 <th style={{
                   border: '1px solid #ddd',
@@ -787,48 +942,44 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   fontWeight: 'bold',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  whiteSpace: 'nowrap'
-                }} onClick={() => handleSort('nic_service')}>
-                  NIC(서비스) {sortConfig.key === 'nic_service' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                </th>
-                <th style={{
-                  border: '1px solid #ddd',
-                  padding: '12px',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  whiteSpace: 'nowrap'
-                }} onClick={() => handleSort('nic_backup')}>
-                  NIC(백업) {sortConfig.key === 'nic_backup' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                </th>
-                <th style={{
-                  border: '1px solid #ddd',
-                  padding: '12px',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  whiteSpace: 'nowrap'
-                }} onClick={() => handleSort('created_at')}>
-                  등록일 {sortConfig.key === 'created_at' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
-                </th>
-                <th style={{
-                  border: '1px solid #ddd',
-                  padding: '12px',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '120px',
                   minWidth: '120px',
-                  whiteSpace: 'nowrap'
-                }}>
-                  작업
+                  maxWidth: '120px'
+                }} onClick={() => handleSort('nic_service')}>
+                  <div style={{ lineHeight: '1.2' }}>
+                    <div>NIC(서비스)</div>
+                    <div>25G FC Type</div>
+                    <div>2port 기준수량</div>
+                  </div>
+                  {sortConfig.key === 'nic_service' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
+                <th style={{
+                  border: '1px solid #ddd',
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  width: '120px',
+                  minWidth: '120px',
+                  maxWidth: '120px'
+                }} onClick={() => handleSort('nic_backup')}>
+                  <div style={{ lineHeight: '1.2' }}>
+                    <div>NIC(백업)</div>
+                    <div>25G FC Type</div>
+                    <div>2port 기준수량</div>
+                  </div>
+                  {sortConfig.key === 'nic_backup' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                </th>
+
               </tr>
             </thead>
             <tbody>
               {sortedList.length === 0 ? (
                 <tr>
-                  <td colSpan="14" style={{
+                  <td colSpan="11" style={{
                     border: '1px solid #ddd',
                     padding: '12px',
                     textAlign: 'center',
@@ -846,86 +997,111 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                     <td style={{
                       border: '1px solid #ddd',
                       padding: '12px',
-                      textAlign: 'center'
-                    }}>{hw.hardware_id}</td>
-                    <td style={{
-                      border: '1px solid #ddd',
-                      padding: '12px'
+                      width: '80px',
+                      minWidth: '80px',
+                      maxWidth: '80px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.work_name || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '80px',
+                      minWidth: '80px',
+                      maxWidth: '80px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.purpose || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '150px',
+                      minWidth: '150px',
+                      maxWidth: '150px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.server_name || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '50px',
+                      minWidth: '50px',
+                      maxWidth: '50px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.cores || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '50px',
+                      minWidth: '50px',
+                      maxWidth: '50px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.memory || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '60px',
+                      minWidth: '60px',
+                      maxWidth: '60px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.os || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '60px',
+                      minWidth: '60px',
+                      maxWidth: '60px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.server_type || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '80px',
+                      minWidth: '80px',
+                      maxWidth: '80px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.os_disk || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '80px',
+                      minWidth: '80px',
+                      maxWidth: '80px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.internal_disk || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '80px',
+                      minWidth: '80px',
+                      maxWidth: '80px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.shared_disk || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
+                      padding: '12px',
+                      width: '120px',
+                      minWidth: '120px',
+                      maxWidth: '120px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }}>{hw.nic_service || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
-                      padding: '12px'
-                    }}>{hw.nic_backup || '-'}</td>
-                    <td style={{
-                      border: '1px solid #ddd',
                       padding: '12px',
-                      fontSize: '0.9em',
-                      color: '#666'
-                    }}>
-                      {new Date(hw.created_at).toLocaleDateString('ko-KR')}
-                    </td>
-                    <td style={{
-                      border: '1px solid #ddd',
-                      padding: '8px',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                        <button
-                          onClick={() => startEdit(hw)}
-                          style={{
-                            padding: '4px 8px',
-                            backgroundColor: '#ffc107',
-                            color: '#212529',
-                            border: 'none',
-                            borderRadius: '3px',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          수정
-                        </button>
-                      </div>
-                    </td>
+                      width: '120px',
+                      minWidth: '120px',
+                      maxWidth: '120px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{hw.nic_backup || '-'}</td>
                   </tr>
                 ))
               )}
@@ -939,8 +1115,49 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
   // 등록 화면
   const renderAddView = () => (
     <div style={{ maxWidth: '100%', overflow: 'hidden', padding: '0 10px' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ textAlign: 'left' }}>하드웨어 등록</h3>
+      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ textAlign: 'left', margin: 0 }}>하드웨어 등록</h3>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={handleTemplateDownload}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#17a2b8',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            📥 템플릿 다운로드
+          </button>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+              id="csvFileInput"
+            />
+            <label
+              htmlFor="csvFileInput"
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#6f42c1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                display: 'inline-block'
+              }}
+            >
+              📤 CSV 일괄등록
+            </label>
+          </div>
+        </div>
       </div>
       <form onSubmit={handleSubmit} style={{ maxWidth: '100%', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>

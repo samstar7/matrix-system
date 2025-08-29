@@ -17,7 +17,7 @@ function App() {
       case 'hardware':
         return <HardwareManager currentView={currentSubMenu} onViewChange={setCurrentSubMenu} />
       case 'software':
-        return <SoftwareManager />
+        return <SoftwareManager currentView={currentSubMenu} onViewChange={setCurrentSubMenu} />
       case 'solution':
         return <SolutionManager currentView={currentSubMenu} onViewChange={setCurrentSubMenu} />
       case 'purchase':
@@ -49,7 +49,17 @@ function App() {
         { id: 'delete', name: '삭제', icon: '🗑️' }
       ]
     },
-    { id: 'software', name: '소프트웨어 관리', icon: '🖥️' },
+    { 
+      id: 'software', 
+      name: '소프트웨어 관리', 
+      icon: '🖥️',
+      subMenus: [
+        { id: 'list', name: '조회', icon: '📋' },
+        { id: 'add', name: '등록', icon: '➕' },
+        { id: 'edit', name: '수정', icon: '✏️' },
+        { id: 'delete', name: '삭제', icon: '🗑️' }
+      ]
+    },
     { 
       id: 'solution', 
       name: '솔루션 관리', 
@@ -200,7 +210,7 @@ function App() {
         overflowY: 'auto'
       }}>
         {/* 페이지 헤더: 프로젝트 관리 > 조회에서는 숨김 */}
-                    {!(currentMenu === 'project' && currentSubMenu === 'list') && !(currentMenu === 'project' && currentSubMenu === 'add') && !(currentMenu === 'project' && currentSubMenu === 'edit') && !(currentMenu === 'hardware' && currentSubMenu === 'add') && !(currentMenu === 'hardware' && currentSubMenu === 'list') && !(currentMenu === 'hardware' && currentSubMenu === 'edit') && !(currentMenu === 'hardware' && currentSubMenu === 'delete') && !(currentMenu === 'solution') && (
+                    {!(currentMenu === 'project' && currentSubMenu === 'list') && !(currentMenu === 'project' && currentSubMenu === 'add') && !(currentMenu === 'project' && currentSubMenu === 'edit') && !(currentMenu === 'hardware' && currentSubMenu === 'add') && !(currentMenu === 'hardware' && currentSubMenu === 'list') && !(currentMenu === 'hardware' && currentSubMenu === 'edit') && !(currentMenu === 'hardware' && currentSubMenu === 'delete') && !(currentMenu === 'solution') && !(currentMenu === 'software') && (
           <div style={{
             marginBottom: '30px',
             paddingBottom: '20px',
@@ -230,7 +240,7 @@ function App() {
               {currentMenu === 'hardware' && currentSubMenu === 'add' && ''}
               {currentMenu === 'hardware' && currentSubMenu === 'edit' && ''}
 
-              {currentMenu === 'software' && '소프트웨어 자산을 등록하고 관리합니다.'}
+
               {currentMenu === 'purchase' && '구매요청을 등록하고 관리합니다.'}
             </p>
           </div>
