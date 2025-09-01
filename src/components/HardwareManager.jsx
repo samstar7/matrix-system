@@ -5,6 +5,7 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
   const [hardwareList, setHardwareList] = useState([]);
   const [projectList, setProjectList] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [serverNameFilter, setServerNameFilter] = useState('');
   const [form, setForm] = useState({ 
     project_id: "", 
     work_name: "", 
@@ -17,8 +18,14 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
     os_disk: "", 
     internal_disk: "", 
     shared_disk: "", 
-    nic_service: "", 
-    nic_backup: "" 
+    nic_service_25g_fc_2p: "", 
+    nic_backup_25g_fc_2p: "",
+    nic_service_10g_fc_2p: "",
+    nic_backup_10g_fc_2p: "",
+    nic_rac_10g_fc_2p: "",
+    nic_gpfs_10g_fc_2p: "",
+    hba_32g_fc_2p: "",
+    remarks: ""
   });
   const [editForm, setEditForm] = useState({ 
     project_id: "", 
@@ -33,8 +40,14 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
     os_disk: "", 
     internal_disk: "", 
     shared_disk: "", 
-    nic_service: "", 
-    nic_backup: "" 
+    nic_service_25g_fc_2p: "", 
+    nic_backup_25g_fc_2p: "",
+    nic_service_10g_fc_2p: "",
+    nic_backup_10g_fc_2p: "",
+    nic_rac_10g_fc_2p: "",
+    nic_gpfs_10g_fc_2p: "",
+    hba_32g_fc_2p: "",
+    remarks: ""
   });
   const [loading, setLoading] = useState(false);
   // 정렬 상태 추가
@@ -150,6 +163,13 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
     let filtered = [...hardwareList];
     filtered = filtered.filter(hw => hw.project_id === selectedProjectId);
     
+    // 서버명 필터링
+    if (serverNameFilter.trim()) {
+      filtered = filtered.filter(hw => 
+        hw.server_name && hw.server_name.toLowerCase().includes(serverNameFilter.toLowerCase())
+      );
+    }
+    
     // 정렬
     if (sortConfig.key) {
       filtered.sort((a, b) => {
@@ -176,7 +196,7 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
       });
     }
     return filtered;
-  }, [hardwareList, sortConfig, selectedProjectId]);
+  }, [hardwareList, sortConfig, selectedProjectId, serverNameFilter]);
 
   // 헤더 클릭 시 정렬 토글
   const handleSort = (key) => {
@@ -434,7 +454,8 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
       internal_disk: hardware.internal_disk || "",
       shared_disk: hardware.shared_disk || "",
       nic_service: hardware.nic_service || "",
-      nic_backup: hardware.nic_backup || ""
+      nic_backup: hardware.nic_backup || "",
+      remarks: hardware.remarks || ""
     });
     // 수정화면에서 직접 호출될 때는 하드웨어 목록도 로드
     if (currentView === 'edit') {
@@ -459,8 +480,14 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
       os_disk: hardware.os_disk || "",
       internal_disk: hardware.internal_disk || "",
       shared_disk: hardware.shared_disk || "",
-      nic_service: hardware.nic_service || "",
-      nic_backup: hardware.nic_backup || ""
+      nic_service_25g_fc_2p: hardware.nic_service_25g_fc_2p || "",
+      nic_backup_25g_fc_2p: hardware.nic_backup_25g_fc_2p || "",
+      nic_service_10g_fc_2p: hardware.nic_service_10g_fc_2p || "",
+      nic_backup_10g_fc_2p: hardware.nic_backup_10g_fc_2p || "",
+      nic_rac_10g_fc_2p: hardware.nic_rac_10g_fc_2p || "",
+      nic_gpfs_10g_fc_2p: hardware.nic_gpfs_10g_fc_2p || "",
+      hba_32g_fc_2p: hardware.hba_32g_fc_2p || "",
+      remarks: hardware.remarks || ""
     });
     setSelectedHardwareForEdit(hardware);
   };
@@ -480,8 +507,14 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
       os_disk: hardware.os_disk || "",
       internal_disk: hardware.internal_disk || "",
       shared_disk: hardware.shared_disk || "",
-      nic_service: hardware.nic_service || "",
-      nic_backup: hardware.nic_backup || ""
+      nic_service_25g_fc_2p: hardware.nic_service_25g_fc_2p || "",
+      nic_backup_25g_fc_2p: hardware.nic_backup_25g_fc_2p || "",
+      nic_service_10g_fc_2p: hardware.nic_service_10g_fc_2p || "",
+      nic_backup_10g_fc_2p: hardware.nic_backup_10g_fc_2p || "",
+      nic_rac_10g_fc_2p: hardware.nic_rac_10g_fc_2p || "",
+      nic_gpfs_10g_fc_2p: hardware.nic_gpfs_10g_fc_2p || "",
+      hba_32g_fc_2p: hardware.hba_32g_fc_2p || "",
+      remarks: hardware.remarks || ""
     });
     setSelectedHardwareForDelete(hardware);
   };
@@ -500,8 +533,14 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
       os_disk: hardware.os_disk || "",
       internal_disk: hardware.internal_disk || "",
       shared_disk: hardware.shared_disk || "",
-      nic_service: hardware.nic_service || "",
-      nic_backup: hardware.nic_backup || ""
+      nic_service_25g_fc_2p: hardware.nic_service_25g_fc_2p || "",
+      nic_backup_25g_fc_2p: hardware.nic_backup_25g_fc_2p || "",
+      nic_service_10g_fc_2p: hardware.nic_service_10g_fc_2p || "",
+      nic_backup_10g_fc_2p: hardware.nic_backup_10g_fc_2p || "",
+      nic_rac_10g_fc_2p: hardware.nic_rac_10g_fc_2p || "",
+      nic_gpfs_10g_fc_2p: hardware.nic_gpfs_10g_fc_2p || "",
+      hba_32g_fc_2p: hardware.hba_32g_fc_2p || "",
+      remarks: hardware.remarks || ""
     });
     onViewChange('delete');
   };
@@ -523,21 +562,29 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
       os_disk: "", 
       internal_disk: "", 
       shared_disk: "", 
-      nic_service: "", 
-      nic_backup: "" 
+      nic_service_25g_fc_2p: "", 
+      nic_backup_25g_fc_2p: "",
+      nic_service_10g_fc_2p: "",
+      nic_backup_10g_fc_2p: "",
+      nic_rac_10g_fc_2p: "",
+      nic_gpfs_10g_fc_2p: "",
+      hba_32g_fc_2p: "",
+      remarks: ""
     });
   };
 
   // 템플릿 다운로드
   const handleTemplateDownload = () => {
     const headers = [
-      '프로젝트ID', '업무명', '용도', 'OS', '서버명', '서버타입', 'CPU코어', '메모리', 'OS디스크', '내장디스크', '공유디스크', 'NIC(서비스)', 'NIC(백업)'
+      '프로젝트ID', '업무명', '용도', 'OS', '서버명', '서버타입', 'CPU코어', '메모리', 'OS디스크', '내장디스크', '공유디스크', 
+      'NIC(서비스)25G FC', 'NIC(백업)25G FC', 'NIC(서비스)10G FC', 'NIC(백업)10G FC', 'NIC(RAC)10G FC', 'NIC(GPFS)10G FC', 'HBA 32G FC'
     ];
     
     // BOM 추가 및 샘플 데이터 포함
     const bom = '\uFEFF';
     const sampleData = [
-      'P001', '웹서버', '웹서비스', 'Windows Server 2019', 'WEB-SRV-01', 'VM', '4', '8GB', '100GB', '500GB', '', '192.168.1.100', '192.168.1.101'
+      'P001', '웹서버', '웹서비스', 'Windows Server 2019', 'WEB-SRV-01', 'VM', '4', '8GB', '100GB', '500GB', '', 
+      '2', '1', '1', '1', '1', '1', '2'
     ];
     
     const csvContent = bom + headers.join(',') + '\n' + sampleData.join(',');
@@ -582,7 +629,8 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
         
         const headers = lines[0].split(',').map(header => header.trim());
         const expectedHeaders = [
-          '프로젝트ID', '업무명', '용도', 'OS', '서버명', '서버타입', 'CPU코어', '메모리', 'OS디스크', '내장디스크', '공유디스크', 'NIC(서비스)', 'NIC(백업)'
+          '프로젝트ID', '업무명', '용도', 'OS', '서버명', '서버타입', 'CPU코어', '메모리', 'OS디스크', '내장디스크', '공유디스크', 
+          'NIC(서비스)25G FC', 'NIC(백업)25G FC', 'NIC(서비스)10G FC', 'NIC(백업)10G FC', 'NIC(RAC)10G FC', 'NIC(GPFS)10G FC', 'HBA 32G FC'
         ];
         
         // 헤더 검증
@@ -617,8 +665,13 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
             os_disk: item['OS디스크'] || '',
             internal_disk: item['내장디스크'] || '',
             shared_disk: item['공유디스크'] || '',
-            nic_service: item['NIC(서비스)'] || '',
-            nic_backup: item['NIC(백업)'] || ''
+            nic_service_25g_fc_2p: item['NIC(서비스)25G FC'] || '',
+            nic_backup_25g_fc_2p: item['NIC(백업)25G FC'] || '',
+            nic_service_10g_fc_2p: item['NIC(서비스)10G FC'] || '',
+            nic_backup_10g_fc_2p: item['NIC(백업)10G FC'] || '',
+            nic_rac_10g_fc_2p: item['NIC(RAC)10G FC'] || '',
+            nic_gpfs_10g_fc_2p: item['NIC(GPFS)10G FC'] || '',
+            hba_32g_fc_2p: item['HBA 32G FC'] || ''
           }));
           
           // 기존 하드웨어 목록에 추가
@@ -665,8 +718,14 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
         os_disk: "", 
         internal_disk: "", 
         shared_disk: "", 
-        nic_service: "", 
-        nic_backup: "" 
+        nic_service_25g_fc_2p: "", 
+        nic_backup_25g_fc_2p: "",
+        nic_service_10g_fc_2p: "",
+        nic_backup_10g_fc_2p: "",
+        nic_rac_10g_fc_2p: "",
+        nic_gpfs_10g_fc_2p: "",
+        hba_32g_fc_2p: "",
+        remarks: ""
       });
       loadHardwareList();
       alert('하드웨어가 성공적으로 등록되었습니다.');
@@ -702,8 +761,14 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
         os_disk: "", 
         internal_disk: "", 
         shared_disk: "", 
-        nic_service: "", 
-        nic_backup: "" 
+        nic_service_25g_fc_2p: "", 
+        nic_backup_25g_fc_2p: "",
+        nic_service_10g_fc_2p: "",
+        nic_backup_10g_fc_2p: "",
+        nic_rac_10g_fc_2p: "",
+        nic_gpfs_10g_fc_2p: "",
+        hba_32g_fc_2p: "",
+        remarks: ""
       });
     } catch (error) {
       console.error('하드웨어 삭제 실패:', error);
@@ -739,7 +804,7 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
             📊 엑셀 다운로드
           </button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
           <label style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }}>
             프로젝트:
           </label>
@@ -748,6 +813,7 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
             onChange={(e) => {
               const projectId = e.target.value;
               setSelectedProjectId(projectId);
+              setServerNameFilter(''); // 프로젝트 변경 시 서버명 필터 초기화
               
               if (projectId) {
                 // 프로젝트가 선택된 경우에만 하드웨어 목록 로드
@@ -775,6 +841,26 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
               </option>
             ))}
           </select>
+          {selectedProjectId && (
+            <>
+              <label style={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', marginLeft: '20px' }}>
+                서버명 검색:
+              </label>
+              <input
+                type="text"
+                placeholder="서버명을 입력하세요"
+                value={serverNameFilter}
+                onChange={(e) => setServerNameFilter(e.target.value)}
+                style={{
+                  padding: '6px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  minWidth: '200px'
+                }}
+              />
+            </>
+          )}
         </div>
       </div>
       {loading ? (
@@ -786,7 +872,7 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
             border: '1px solid #ddd',
             marginTop: '10px',
             tableLayout: 'fixed',
-            width: '910px'
+            width: '1710px'
           }}>
             <thead>
               <tr style={{ backgroundColor: '#f2f2f2' }}>
@@ -947,13 +1033,13 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   width: '120px',
                   minWidth: '120px',
                   maxWidth: '120px'
-                }} onClick={() => handleSort('nic_service')}>
+                }} onClick={() => handleSort('nic_service_25g_fc_2p')}>
                   <div style={{ lineHeight: '1.2' }}>
                     <div>NIC(서비스)</div>
                     <div>25G FC Type</div>
                     <div>2port 기준수량</div>
                   </div>
-                  {sortConfig.key === 'nic_service' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                  {sortConfig.key === 'nic_service_25g_fc_2p' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
                 <th style={{
                   border: '1px solid #ddd',
@@ -965,13 +1051,127 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                   width: '120px',
                   minWidth: '120px',
                   maxWidth: '120px'
-                }} onClick={() => handleSort('nic_backup')}>
+                }} onClick={() => handleSort('nic_backup_25g_fc_2p')}>
                   <div style={{ lineHeight: '1.2' }}>
                     <div>NIC(백업)</div>
                     <div>25G FC Type</div>
                     <div>2port 기준수량</div>
                   </div>
-                  {sortConfig.key === 'nic_backup' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                  {sortConfig.key === 'nic_backup_25g_fc_2p' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                </th>
+                <th style={{
+                  border: '1px solid #ddd',
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '120px',
+                  minWidth: '120px',
+                  maxWidth: '120px'
+                }} onClick={() => handleSort('nic_service_10g_fc_2p')}>
+                  <div style={{ lineHeight: '1.2' }}>
+                    <div>NIC(서비스)</div>
+                    <div>10G FC Type</div>
+                    <div>2port 기준수량</div>
+                  </div>
+                  {sortConfig.key === 'nic_service_10g_fc_2p' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                </th>
+                <th style={{
+                  border: '1px solid #ddd',
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '120px',
+                  minWidth: '120px',
+                  maxWidth: '120px'
+                }} onClick={() => handleSort('nic_backup_10g_fc_2p')}>
+                  <div style={{ lineHeight: '1.2' }}>
+                    <div>NIC(백업)</div>
+                    <div>10G FC Type</div>
+                    <div>2port 기준수량</div>
+                  </div>
+                  {sortConfig.key === 'nic_backup_10g_fc_2p' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                </th>
+                <th style={{
+                  border: '1px solid #ddd',
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '120px',
+                  minWidth: '120px',
+                  maxWidth: '120px'
+                }} onClick={() => handleSort('nic_rac_10g_fc_2p')}>
+                  <div style={{ lineHeight: '1.2' }}>
+                    <div>NIC(RAC)</div>
+                    <div>10G FC Type</div>
+                    <div>2port 기준수량</div>
+                  </div>
+                  {sortConfig.key === 'nic_rac_10g_fc_2p' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                </th>
+                <th style={{
+                  border: '1px solid #ddd',
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '120px',
+                  minWidth: '120px',
+                  maxWidth: '120px'
+                }} onClick={() => handleSort('nic_gpfs_10g_fc_2p')}>
+                  <div style={{ lineHeight: '1.2' }}>
+                    <div>NIC(GPFS)</div>
+                    <div>10G FC Type</div>
+                    <div>2port 기준수량</div>
+                  </div>
+                  {sortConfig.key === 'nic_gpfs_10g_fc_2p' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                </th>
+                <th style={{
+                  border: '1px solid #ddd',
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  whiteSpace: 'normal',
+                  lineHeight: '1.2',
+                  width: '120px',
+                  minWidth: '120px',
+                  maxWidth: '120px'
+                }} onClick={() => handleSort('hba_32g_fc_2p')}>
+                  <div style={{ lineHeight: '1.2' }}>
+                    <div>HBA</div>
+                    <div>32G FC Type</div>
+                    <div>2port 기준수량</div>
+                  </div>
+                  {sortConfig.key === 'hba_32g_fc_2p' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                </th>
+                <th style={{
+                  border: '1px solid #ddd',
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  whiteSpace: 'nowrap',
+                  width: '200px',
+                  minWidth: '200px',
+                  maxWidth: '200px'
+                }} onClick={() => handleSort('remarks')}>
+                  비고 {sortConfig.key === 'remarks' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
                 </th>
 
               </tr>
@@ -979,7 +1179,7 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
             <tbody>
               {sortedList.length === 0 ? (
                 <tr>
-                  <td colSpan="11" style={{
+                  <td colSpan="16" style={{
                     border: '1px solid #ddd',
                     padding: '12px',
                     textAlign: 'center',
@@ -1092,7 +1292,7 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                       maxWidth: '120px',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
-                    }}>{hw.nic_service || '-'}</td>
+                    }}>{hw.nic_service_25g_fc_2p || '-'}</td>
                     <td style={{
                       border: '1px solid #ddd',
                       padding: '12px',
@@ -1101,7 +1301,61 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                       maxWidth: '120px',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
-                    }}>{hw.nic_backup || '-'}</td>
+                    }}>{hw.nic_backup_25g_fc_2p || '-'}</td>
+                    <td style={{
+                      border: '1px solid #ddd',
+                      padding: '12px',
+                      width: '120px',
+                      minWidth: '120px',
+                      maxWidth: '120px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{hw.nic_service_10g_fc_2p || '-'}</td>
+                    <td style={{
+                      border: '1px solid #ddd',
+                      padding: '12px',
+                      width: '120px',
+                      minWidth: '120px',
+                      maxWidth: '120px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{hw.nic_backup_10g_fc_2p || '-'}</td>
+                    <td style={{
+                      border: '1px solid #ddd',
+                      padding: '12px',
+                      width: '120px',
+                      minWidth: '120px',
+                      maxWidth: '120px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{hw.nic_rac_10g_fc_2p || '-'}</td>
+                    <td style={{
+                      border: '1px solid #ddd',
+                      padding: '12px',
+                      width: '120px',
+                      minWidth: '120px',
+                      maxWidth: '120px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{hw.nic_gpfs_10g_fc_2p || '-'}</td>
+                    <td style={{
+                      border: '1px solid #ddd',
+                      padding: '12px',
+                      width: '120px',
+                      minWidth: '120px',
+                      maxWidth: '120px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{hw.hba_32g_fc_2p || '-'}</td>
+                    <td style={{
+                      border: '1px solid #ddd',
+                      padding: '12px',
+                      width: '200px',
+                      minWidth: '200px',
+                      maxWidth: '200px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{hw.remarks || '-'}</td>
                   </tr>
                 ))
               )}
@@ -1385,15 +1639,15 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
             />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
-              NIC(서비스)
+              NIC(서비스) 25G FC
             </label>
             <input
-              name="nic_service"
-              placeholder="NIC(서비스)를 입력하세요"
-              value={form.nic_service}
+              name="nic_service_25g_fc_2p"
+              placeholder="NIC(서비스) 25G FC를 입력하세요"
+              value={form.nic_service_25g_fc_2p}
               onChange={handleChange}
               disabled={loading}
               style={{
@@ -1407,12 +1661,12 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
-              NIC(백업)
+              NIC(백업) 25G FC
             </label>
             <input
-              name="nic_backup"
-              placeholder="NIC(백업)를 입력하세요"
-              value={form.nic_backup}
+              name="nic_backup_25g_fc_2p"
+              placeholder="NIC(백업) 25G FC를 입력하세요"
+              value={form.nic_backup_25g_fc_2p}
               onChange={handleChange}
               disabled={loading}
               style={{
@@ -1421,6 +1675,130 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                 border: '1px solid #ddd',
                 borderRadius: '4px',
                 fontSize: '14px'
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              NIC(서비스) 10G FC
+            </label>
+            <input
+              name="nic_service_10g_fc_2p"
+              placeholder="NIC(서비스) 10G FC를 입력하세요"
+              value={form.nic_service_10g_fc_2p}
+              onChange={handleChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              NIC(백업) 10G FC
+            </label>
+            <input
+              name="nic_backup_10g_fc_2p"
+              placeholder="NIC(백업) 10G FC를 입력하세요"
+              value={form.nic_backup_10g_fc_2p}
+              onChange={handleChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              NIC(RAC) 10G FC
+            </label>
+            <input
+              name="nic_rac_10g_fc_2p"
+              placeholder="NIC(RAC) 10G FC를 입력하세요"
+              value={form.nic_rac_10g_fc_2p}
+              onChange={handleChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              NIC(GPFS) 10G FC
+            </label>
+            <input
+              name="nic_gpfs_10g_fc_2p"
+              placeholder="NIC(GPFS) 10G FC를 입력하세요"
+              value={form.nic_gpfs_10g_fc_2p}
+              onChange={handleChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              HBA 32G FC
+            </label>
+            <input
+              name="hba_32g_fc_2p"
+              placeholder="HBA 32G FC를 입력하세요"
+              value={form.hba_32g_fc_2p}
+              onChange={handleChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              비고
+            </label>
+            <textarea
+              name="remarks"
+              placeholder="비고를 입력하세요"
+              value={form.remarks}
+              onChange={handleChange}
+              disabled={loading}
+              rows="3"
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+                resize: 'vertical'
               }}
             />
           </div>
@@ -1508,50 +1886,54 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0 }}>
-                    <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>하드웨어ID</th>
+                    <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>수정대상</th>
                     <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>업무명</th>
+                    <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>용도</th>
                     <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>서버명</th>
+                    <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>Core수</th>
+                    <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>메모리</th>
                     <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>OS</th>
-                    <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>상태</th>
+                    <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>서버구분</th>
                   </tr>
                 </thead>
                 <tbody>
                   {editHardwareList.map((hw) => (
                     <tr 
                       key={`${hw.project_id}-${hw.hardware_id}`}
-                      onClick={() => selectHardwareForEdit(hw)}
                       style={{ 
-                        backgroundColor: selectedHardwareForEdit?.hardware_id === hw.hardware_id ? '#e3f2fd' : 'white',
-                        cursor: 'pointer'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (selectedHardwareForEdit?.hardware_id !== hw.hardware_id) {
-                          e.currentTarget.style.backgroundColor = '#f5f5f5';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (selectedHardwareForEdit?.hardware_id !== hw.hardware_id) {
-                          e.currentTarget.style.backgroundColor = 'white';
-                        }
+                        backgroundColor: selectedHardwareForEdit?.hardware_id === hw.hardware_id ? '#e3f2fd' : 'white'
                       }}
                     >
                       <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'center', fontSize: '14px' }}>
-                        {hw.hardware_id}
+                        <input
+                          type="radio"
+                          name="editTarget"
+                          value={`${hw.project_id}-${hw.hardware_id}`}
+                          checked={selectedHardwareForEdit?.hardware_id === hw.hardware_id}
+                          onChange={() => selectHardwareForEdit(hw)}
+                          style={{ cursor: 'pointer' }}
+                        />
                       </td>
                       <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
                         {hw.work_name || '-'}
                       </td>
                       <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
+                        {hw.purpose || '-'}
+                      </td>
+                      <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
                         {hw.server_name || '-'}
+                      </td>
+                      <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'center', fontSize: '14px' }}>
+                        {hw.cores || '-'}
+                      </td>
+                      <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'center', fontSize: '14px' }}>
+                        {hw.memory || '-'}
                       </td>
                       <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
                         {hw.os || '-'}
                       </td>
-                      <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'center', fontSize: '14px' }}>
-                        {selectedHardwareForEdit?.hardware_id === hw.hardware_id ? 
-                          <span style={{ color: '#2196f3', fontWeight: 'bold' }}>선택됨</span> : 
-                          <span style={{ color: '#666' }}>클릭하여 선택</span>
-                        }
+                      <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
+                        {hw.server_type || '-'}
                       </td>
                     </tr>
                   ))}
@@ -1776,15 +2158,15 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
             />
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
-              NIC(서비스)
+              NIC(서비스) 25G FC
             </label>
             <input
-              name="nic_service"
-              placeholder="NIC(서비스)를 입력하세요"
-              value={editForm.nic_service}
+              name="nic_service_25g_fc_2p"
+              placeholder="NIC(서비스) 25G FC를 입력하세요"
+              value={editForm.nic_service_25g_fc_2p}
               onChange={handleEditChange}
               disabled={loading}
               style={{
@@ -1798,12 +2180,12 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
-              NIC(백업)
+              NIC(백업) 25G FC
             </label>
             <input
-              name="nic_backup"
-              placeholder="NIC(백업)를 입력하세요"
-              value={editForm.nic_backup}
+              name="nic_backup_25g_fc_2p"
+              placeholder="NIC(백업) 25G FC를 입력하세요"
+              value={editForm.nic_backup_25g_fc_2p}
               onChange={handleEditChange}
               disabled={loading}
               style={{
@@ -1812,6 +2194,130 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
                 border: '1px solid #ddd',
                 borderRadius: '4px',
                 fontSize: '14px'
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              NIC(서비스) 10G FC
+            </label>
+            <input
+              name="nic_service_10g_fc_2p"
+              placeholder="NIC(서비스) 10G FC를 입력하세요"
+              value={editForm.nic_service_10g_fc_2p}
+              onChange={handleEditChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              NIC(백업) 10G FC
+            </label>
+            <input
+              name="nic_backup_10g_fc_2p"
+              placeholder="NIC(백업) 10G FC를 입력하세요"
+              value={editForm.nic_backup_10g_fc_2p}
+              onChange={handleEditChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              NIC(RAC) 10G FC
+            </label>
+            <input
+              name="nic_rac_10g_fc_2p"
+              placeholder="NIC(RAC) 10G FC를 입력하세요"
+              value={editForm.nic_rac_10g_fc_2p}
+              onChange={handleEditChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              NIC(GPFS) 10G FC
+            </label>
+            <input
+              name="nic_gpfs_10g_fc_2p"
+              placeholder="NIC(GPFS) 10G FC를 입력하세요"
+              value={editForm.nic_gpfs_10g_fc_2p}
+              onChange={handleEditChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px', alignItems: 'center', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              HBA 32G FC
+            </label>
+            <input
+              name="hba_32g_fc_2p"
+              placeholder="HBA 32G FC를 입력하세요"
+              value={editForm.hba_32g_fc_2p}
+              onChange={handleEditChange}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'left' }}>
+              비고
+            </label>
+            <textarea
+              name="remarks"
+              placeholder="비고를 입력하세요"
+              value={editForm.remarks}
+              onChange={handleEditChange}
+              disabled={loading}
+              rows="3"
+              style={{
+                flex: 1,
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+                resize: 'vertical'
               }}
             />
           </div>
@@ -1883,50 +2389,54 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0 }}>
-                  <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>하드웨어ID</th>
+                  <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>삭제대상</th>
                   <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>업무명</th>
+                  <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>용도</th>
                   <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>서버명</th>
+                  <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>Core수</th>
+                  <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>메모리</th>
                   <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>OS</th>
-                  <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>상태</th>
+                  <th style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px', fontWeight: 'bold' }}>서버구분</th>
                 </tr>
               </thead>
               <tbody>
                 {deleteHardwareList.map((hw) => (
                   <tr 
                     key={`${hw.project_id}-${hw.hardware_id}`}
-                    onClick={() => selectHardwareForDelete(hw)}
                     style={{ 
-                      backgroundColor: selectedHardwareForDelete?.hardware_id === hw.hardware_id ? '#ffebee' : 'white',
-                      cursor: 'pointer'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedHardwareForDelete?.hardware_id !== hw.hardware_id) {
-                        e.currentTarget.style.backgroundColor = '#f5f5f5';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedHardwareForDelete?.hardware_id !== hw.hardware_id) {
-                        e.currentTarget.style.backgroundColor = 'white';
-                      }
+                      backgroundColor: selectedHardwareForDelete?.hardware_id === hw.hardware_id ? '#ffebee' : 'white'
                     }}
                   >
                     <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'center', fontSize: '14px' }}>
-                      {hw.hardware_id}
+                      <input
+                        type="radio"
+                        name="deleteTarget"
+                        value={`${hw.project_id}-${hw.hardware_id}`}
+                        checked={selectedHardwareForDelete?.hardware_id === hw.hardware_id}
+                        onChange={() => selectHardwareForDelete(hw)}
+                        style={{ cursor: 'pointer' }}
+                      />
                     </td>
                     <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
                       {hw.work_name || '-'}
                     </td>
                     <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
+                      {hw.purpose || '-'}
+                    </td>
+                    <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
                       {hw.server_name || '-'}
+                    </td>
+                    <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'center', fontSize: '14px' }}>
+                      {hw.cores || '-'}
+                    </td>
+                    <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'center', fontSize: '14px' }}>
+                      {hw.memory || '-'}
                     </td>
                     <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
                       {hw.os || '-'}
                     </td>
-                    <td style={{ padding: '8px', border: '1px solid #ddd', textAlign: 'center', fontSize: '14px' }}>
-                      {selectedHardwareForDelete?.hardware_id === hw.hardware_id ? 
-                        <span style={{ color: '#dc3545', fontWeight: 'bold' }}>삭제 선택됨</span> : 
-                        <span style={{ color: '#666' }}>클릭하여 삭제</span>
-                      }
+                    <td style={{ padding: '8px', border: '1px solid #ddd', fontSize: '14px' }}>
+                      {hw.server_type || '-'}
                     </td>
                   </tr>
                 ))}
@@ -1961,13 +2471,36 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
           marginBottom: '20px'
         }}>
           <h4>다음 하드웨어를 삭제하시겠습니까?</h4>
-          <p><strong>프로젝트ID:</strong> {editForm.project_id}</p>
-          <p><strong>하드웨어ID:</strong> {editForm.hardware_id}</p>
-          <p><strong>업무명:</strong> {editForm.work_name || '-'}</p>
-          <p><strong>용도:</strong> {editForm.purpose || '-'}</p>
-          <p><strong>서버명:</strong> {editForm.server_name || '-'}</p>
-          <p><strong>OS:</strong> {editForm.os || '-'}</p>
-          <p><strong>메모리:</strong> {editForm.memory || '-'}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px', marginBottom: '6px', lineHeight: '0.8' }}>
+            <p><strong>업무명:</strong> {editForm.work_name || '-'}</p>
+            <p><strong>용도:</strong> {editForm.purpose || '-'}</p>
+            <p><strong>서버명:</strong> {editForm.server_name || '-'}</p>
+            <p><strong>서버구분:</strong> {editForm.server_type || '-'}</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', marginBottom: '6px', lineHeight: '0.8' }}>
+            <p><strong>Core수:</strong> {editForm.cores || '-'}</p>
+            <p><strong>메모리:</strong> {editForm.memory || '-'}</p>
+            <p><strong>OS:</strong> {editForm.os || '-'}</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', marginBottom: '6px', lineHeight: '0.8' }}>
+            <p><strong>OS디스크:</strong> {editForm.os_disk || '-'}</p>
+            <p><strong>내장디스크:</strong> {editForm.internal_disk || '-'}</p>
+            <p><strong>공유디스크:</strong> {editForm.shared_disk || '-'}</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px', marginBottom: '6px', lineHeight: '0.8' }}>
+            <p><strong>NIC(서비스) 25G FC:</strong> {editForm.nic_service_25g_fc_2p || '-'}</p>
+            <p><strong>NIC(백업) 25G FC:</strong> {editForm.nic_backup_25g_fc_2p || '-'}</p>
+            <p><strong>NIC(서비스) 10G FC:</strong> {editForm.nic_service_10g_fc_2p || '-'}</p>
+            <p><strong>NIC(백업) 10G FC:</strong> {editForm.nic_backup_10g_fc_2p || '-'}</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', marginBottom: '10px', lineHeight: '0.8' }}>
+            <p><strong>NIC(RAC) 10G FC:</strong> {editForm.nic_rac_10g_fc_2p || '-'}</p>
+            <p><strong>NIC(GPFS) 10G FC:</strong> {editForm.nic_gpfs_10g_fc_2p || '-'}</p>
+            <p><strong>HBA 32G FC:</strong> {editForm.hba_32g_fc_2p || '-'}</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '5px', marginBottom: '10px', lineHeight: '0.8' }}>
+            <p><strong>비고:</strong> {editForm.remarks || '-'}</p>
+          </div>
           <p style={{ marginTop: '15px', fontWeight: 'bold' }}>
             ⚠️ 이 작업은 되돌릴 수 없습니다!
           </p>
@@ -1995,9 +2528,27 @@ function HardwareManager({ currentView = 'list', onViewChange }) {
           <button
             onClick={() => {
               setSelectedHardwareForDelete(null);
-              setDeleteProjectId('');
-              setDeleteHardwareList([]);
-              handleCancel();
+              setEditForm({ 
+                project_id: "", 
+                hardware_id: null, 
+                work_name: "", 
+                purpose: "", 
+                os: "", 
+                server_name: "", 
+                server_type: "", 
+                cores: "", 
+                memory: "", 
+                os_disk: "", 
+                internal_disk: "", 
+                shared_disk: "", 
+                nic_service_25g_fc_2p: "", 
+                nic_backup_25g_fc_2p: "",
+                nic_service_10g_fc_2p: "",
+                nic_backup_10g_fc_2p: "",
+                nic_rac_10g_fc_2p: "",
+                nic_gpfs_10g_fc_2p: "",
+                hba_32g_fc_2p: ""
+              });
             }}
             style={{
               padding: '10px 20px',

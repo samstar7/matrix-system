@@ -43,6 +43,18 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
   const [previousView, setPreviousView] = useState('list');
   const [salesRepList, setSalesRepList] = useState([]);
 
+  // 날짜 포맷팅 함수
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '-';
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+    } catch (error) {
+      return '-';
+    }
+  };
+
   // 영업대표 목록 추출
   const extractSalesRepList = (projects) => {
     const salesReps = [...new Set(projects.map(project => project.sales_rep).filter(Boolean))];
@@ -443,9 +455,9 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
         project.sales_rep,
         project.status,
         project.proposal_pm,
-        project.announce_date,
-        project.submit_date,
-        project.presentation_date,
+        formatDate(project.announce_date),
+        formatDate(project.submit_date),
+        formatDate(project.presentation_date),
         project.description
       ]);
       
@@ -762,19 +774,19 @@ function ProjectManager({ currentView = 'list', onViewChange }) {
                       padding: '12px',
                       textAlign: 'center',
                       whiteSpace: 'nowrap'
-                    }}>{project.announce_date}</td>
+                    }}>{formatDate(project.announce_date)}</td>
                     <td style={{
                       border: '1px solid #ddd',
                       padding: '12px',
                       textAlign: 'center',
                       whiteSpace: 'nowrap'
-                    }}>{project.submit_date}</td>
+                    }}>{formatDate(project.submit_date)}</td>
                     <td style={{
                       border: '1px solid #ddd',
                       padding: '12px',
                       textAlign: 'center',
                       whiteSpace: 'nowrap'
-                    }}>{project.presentation_date}</td>
+                    }}>{formatDate(project.presentation_date)}</td>
                     <td style={{
                       border: '1px solid #ddd',
                       padding: '12px',
